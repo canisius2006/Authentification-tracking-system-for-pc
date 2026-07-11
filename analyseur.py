@@ -239,7 +239,7 @@ def analyser_activite(activite_brute: dict) -> dict:
 
 if __name__ == "__main__":
     cas_de_test = [
-        {'application': 'chrome.exe', 'titre': "Amélioration du script d'analyse d'activité utilisateur - Claude - Google Chrome"},
+        {'application': 'Code.exe', 'titre': 'test.py - developpement - Visual Studio Code'},
         
     ]
     for activite_brute in cas_de_test:
