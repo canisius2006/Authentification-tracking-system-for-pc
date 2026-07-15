@@ -3,14 +3,6 @@ from tkinter import messagebox
 import random 
 import mysql.connector 
 import datetime,socket
-adresse_ip = socket.gethostbyname('DESKTOP-K77J63D')
-conn = mysql.connector.connect(
-    host=adresse_ip,
-    user='inscription',
-    password='CLUBIA',
-    database='authentification'
-)
-cursor = conn.cursor()
 
 class App(ctk.CTk):
     def __init__(self):
@@ -96,6 +88,14 @@ class App(ctk.CTk):
     def pusher(self):
         """Cette fonction pour la commande que fera le bouton confirmer """
         self.nom_pc = socket.gethostname()
+        adresse_ip = socket.gethostbyname('CIA-008')
+        conn = mysql.connector.connect(
+        host=adresse_ip,
+        user='inscription',
+        password='CLUBIA',
+        database='authentification')
+        cursor = conn.cursor()
+
         try:
             sql = "INSERT INTO users (nom,prenom,date,nom_pc) VALUES (%s,%s,%s,%s)"
             valeurs = (self.name.upper(),self.firstname.capitalize(),str(datetime.datetime.now()),self.nom_pc)

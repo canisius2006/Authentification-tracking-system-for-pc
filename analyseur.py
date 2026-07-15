@@ -240,7 +240,7 @@ def analyser_activite(activite_brute: dict) -> dict:
 if __name__ == "__main__":
     cas_de_test = [
         {'application': 'Code.exe', 'titre': 'test.py - developpement - Visual Studio Code'},
-        
+        {'application': 'chrome.exe', 'titre': '(9) Benson Boone - Beautiful Things (Official Music Video) - YouTube - Google Chrome'}
     ]
     for activite_brute in cas_de_test:
         data = analyser_activite(activite_brute)
