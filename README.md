@@ -293,5 +293,5 @@ Pour un environnement professionnel :
 ---
 
 # Auteur
-Canisius NOBRE
+
 Projet développé pour le système d'inscription CAEB.
