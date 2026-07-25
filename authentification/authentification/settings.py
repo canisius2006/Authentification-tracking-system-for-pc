@@ -15,6 +15,7 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 import socket
+from datetime import timedelta
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -119,6 +120,19 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     )
 
+}
+
+# Configuration de SimpleJWT
+SIMPLE_JWT = {
+    # Durée de vie de l'Access Token (ex: 30 minutes, 1 heure, 1 jour...)
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
+    
+    # Durée de vie du Refresh Token (ex: 1 jour, 7 jours...)
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    
+    # Optionnel : Permet de renouveler le Refresh Token lors d'un rafraîchissement
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACK_LIST_AFTER_ROTATION': True,
 }
 
 # Internationalization
