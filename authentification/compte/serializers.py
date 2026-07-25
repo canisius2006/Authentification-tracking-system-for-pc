@@ -3,7 +3,19 @@ from .models import Session_activite,Application,Bad_action
 from django.contrib.auth import get_user_model 
 from django.utils import timezone
 from django.db.models import F 
+import random
+from datetime import datetime 
 User = get_user_model()
+
+
+#La fonction pour pouvoir créer un matricule automatiquement 
+def create_matricule():
+    a = f'{int(str(datetime.now().year)[2:]):02d}'
+    b = f'{datetime.now().month:02d}' 
+    c = f'{random.randint(1,999):03d}'
+    d = f'{(97 - ((int(a+b+c))%97)):02d}'
+    e = str(a)+b+'U'+c+str(d)
+    return e
 
 #Ce serializer sert à consulter ou modifier le profil.
 class UserSerializer(serializers.ModelSerializer):
@@ -22,6 +34,10 @@ class RegisterSerializer(serializers.ModelSerializer):
         fields = ["username",'password','email','telephone','photo_de_profil','sexe']
 
     def create(self,validated_data):
+        matricule = create_matricule()
+        while User.objects.filter(matricule=matricule).exists():
+            matricule = create_matricule()
+        validated_data['matricule']=matricule
         return User.objects.create_user(**validated_data)
 
 

@@ -25,10 +25,10 @@ from rest_framework_simplejwt.views import (
 
 from compte import views
 urlpatterns = [
-     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('',views.accueil),
+    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('admin/', admin.site.urls),
-    path('',views.accueil),
     path('api/',include('compte.urls'))
 ]
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
