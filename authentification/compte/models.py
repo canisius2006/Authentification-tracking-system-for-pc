@@ -25,7 +25,7 @@ class Session_activite(models.Model):
     jour = models.DateField(verbose_name='Jour',auto_now_add=True)
     heure_debut = models.TimeField(verbose_name='Heure de debut',auto_now_add=True)
     heure_fin = models.TimeField(verbose_name='Heure de fin',default=timezone.now)
-    actif = models.BooleanField(verbose_name='actif',default=True)
+
 
     def __str__(self):
         return f"{self.user.username} le {self.jour} du {self.heure_debut} à {self.heure_fin}"

@@ -49,7 +49,7 @@ class SessionActiviteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Session_activite
         fields = ["id","jour","heure_debut","heure_fin"]
-        read_only_fields = ['id']
+        read_only_fields = ['id',"jour","heure_debut","heure_fin"]
 
 class ApplicationSerializer(serializers.ModelSerializer):
     class Meta:
@@ -80,6 +80,7 @@ class BadActionSerializer(serializers.ModelSerializer):
             pass
         else:
             action = Bad_action.objects.create(**validated_data)
+            user.score  = F('score') - 2
 
         user = action.application.session.user 
         session = action.application.session
@@ -87,7 +88,7 @@ class BadActionSerializer(serializers.ModelSerializer):
         #Ici, on agit sur les heures de fin de chaque champ 
         session.heure_fin = timezone.now().time()
         application.heure_fin = timezone.now().time()
-        user.score  = F('score') - 2
+       
         #Ici, il faut faire l'enregistrement
         session.save(update_fields=['heure_fin'])
         application.save(update_fields=['heure_fin'])

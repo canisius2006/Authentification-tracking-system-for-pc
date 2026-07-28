@@ -7,7 +7,8 @@ from .serializers import UserSerializer,SessionActiviteSerializer,BadActionSeria
 #Import des classes du sérializers 
 from .models import Session_activite,Application,Bad_action 
 from rest_framework import generics 
- 
+from rest_framework.exceptions import ValidationError 
+from rest_framework import serializers
 # Create your views here.
 
 
@@ -40,9 +41,6 @@ class SessionActiviteModelView(viewsets.ModelViewSet):
     def get_queryset(self):
         return Session_activite.objects.filter(user=self.request.user)
     
-    def perform_create(self, serializer):
-        Session_activite.objects.filter(user=self.request.user,actif=True).update(actif=False)
-        return serializer.save(user=self.request.user)
     
     permission_classes = [IsAuthenticated]
 
@@ -53,8 +51,12 @@ class ApplicationModelView(viewsets.ModelViewSet):
         return Application.objects.filter(session__user=self.request.user)
     
     def perform_create(self, serializer):
-        session = Session_activite.objects.filter(user=self.request.user,actif=True).first()
-        
+        session_id = self.request.data.get('session')
+        session = Session_activite.objects.filter(user=self.request.user,id=session_id).first()
+        if session is None:
+            raise serializers.ValidationError(
+            "Session invalide."
+        )
         return serializer.save(session=session)
     
     permission_classes = [IsAuthenticated]
@@ -66,10 +68,14 @@ class Bad_actionModelView(viewsets.ModelViewSet):
         return Bad_action.objects.filter(application__session__user=self.request.user)
     
     def perform_create(self, serializer):
-        session = Session_activite.objects.filter(user=self.request.user,actif=True).first()
+        session_id = self.request.data.get('session')
+        session = Session_activite.objects.filter(user=self.request.user,id=session_id).first()
+        if session is None:
+            raise serializers.ValidationError(
+            "Session invalide.")
         application = Application.objects.filter(session=session,nom=self.request.data['nom']).first()
         if application is None:
-            raise "L'application n'existe pas encore"
+            raise ValidationError( "L'application n'existe pas encore")
         return serializer.save(application=application)
     
     permission_classes = [IsAuthenticated]
