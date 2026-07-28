@@ -1,13 +1,17 @@
 import json
 import math
 import re
-import ollama
-import time 
+import time
+import requests
+
+t = time.time()
+
+OLLAMA_URL = "http://localhost:11434"  # change l'IP ici si le serveur tourne ailleurs sur le réseau
+
 
 # ============================================================
 # 1. Normalisation de l'entrée
 # ============================================================
-t = time.time()
 
 def normaliser_activite(brut: dict) -> dict:
     application = brut.get("application", "inconnue")
@@ -17,7 +21,7 @@ def normaliser_activite(brut: dict) -> dict:
 
 
 # ============================================================
-# 2. Porte de négation partagée (appliquée une seule fois, avant tout)
+# 2. Porte de négation partagée
 # ============================================================
 
 MOTS_NEGATION_CONTEXTE = [
@@ -33,8 +37,7 @@ def contient_negation(texte: str) -> bool:
 
 
 # ============================================================
-# 3. Blocklist de domaines connus (Blocklist Project - piraterie/streaming)
-#    Fichier : https://blocklistproject.github.io/Lists/piracy.txt
+# 3. Blocklist de domaines connus
 # ============================================================
 
 MOTIF_DOMAINE = re.compile(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z]{2,})+")
@@ -78,14 +81,10 @@ def verifier_blocklist(activite: dict, texte: str) -> dict | None:
 
 # ============================================================
 # 4. Classification par similarité d'embeddings
-#    CORRECTIF 1 : bge-m3 (multilingue, réel modèle d'embedding), pas qwen.
-#        → ollama pull bge-m3
-#    CORRECTIF 2 : prototypes sans nom de plateforme (YouTube, Chrome...)
-#    pour éviter la contamination par simple mot commun. Le texte comparé
-#    est aussi nettoyé de ces suffixes avant l'embedding.
+#    Appel HTTP direct à /api/embeddings, plus de dépendance au paquet ollama.
 # ============================================================
 
-MODELE_EMBEDDING = "bge-m3"
+MODELE_EMBEDDING = "bge-m3"  # remplace par "qwen2.5:1.5b" si tu préfères un seul modèle
 
 SUFFIXES_NAVIGATEUR = [
     " - google chrome", " - mozilla firefox", " - microsoft edge",
@@ -123,8 +122,14 @@ _cache_embeddings_prototypes = None
 
 
 def _embed(texte: str) -> list[float]:
-    reponse = ollama.embeddings(model=MODELE_EMBEDDING, prompt=texte)
-    return reponse["embedding"]
+    """Appel HTTP direct, équivalent à ollama.embeddings(...)."""
+    reponse = requests.post(
+        f"{OLLAMA_URL}/api/embeddings",
+        json={"model": MODELE_EMBEDDING, "prompt": texte},
+        timeout=30,
+    )
+    reponse.raise_for_status()
+    return reponse.json()["embedding"]
 
 
 def _cosine(a: list[float], b: list[float]) -> float:
@@ -167,7 +172,7 @@ def classifier_par_embeddings(
     meilleur_score = max(score_educatif, score_divertissement)
 
     if marge < seuil_marge or meilleur_score < seuil_plancher:
-        return None  # ambigu ou hors périmètre → on laisse le LLM trancher
+        return None
 
     mauvais = score_divertissement > score_educatif
     confiance = min(0.9, 0.5 + marge)
@@ -185,12 +190,7 @@ def classifier_par_embeddings(
 
 
 # ============================================================
-# 5. LLM génératif — dernier recours pour les cas ambigus/négation.
-#    Le champ "confiance" auto-déclaré par un petit modèle n'est pas
-#    fiable en soi (on l'a vu à plusieurs reprises) : on le combine donc
-#    à un second appel (température différente) pour vérifier l'accord
-#    entre les deux réponses avant de faire confiance à la décision.
-#    Si l'un des deux échoue ou qu'elles se contredisent → incertain.
+# 5. LLM génératif — appel HTTP direct à /api/chat
 # ============================================================
 
 SEUIL_CONFIANCE = 0.55
@@ -226,32 +226,39 @@ def _incertain(activite: dict, justification: str) -> dict:
 
 
 def _appel_llm_unique(activite: dict, temperature: float) -> dict | None:
+    """Appel HTTP direct, équivalent à ollama.chat(...)."""
     user_prompt = json.dumps(activite, ensure_ascii=False)
     try:
-        response = ollama.chat(
-            model="qwen2.5:1.5b",
-            format="json",
-            options={"temperature": temperature},
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": user_prompt},
-            ],
+        reponse = requests.post(
+            f"{OLLAMA_URL}/api/chat",
+            json={
+                "model": "qwen2.5:1.5b",
+                "format": "json",
+                "stream": False,   # important : sans ça, l'API renvoie du texte en flux, pas un JSON unique
+                "options": {"temperature": temperature},
+                "messages": [
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": user_prompt},
+                ],
+            },
+            timeout=60,
         )
-        data = json.loads(response["message"]["content"])
+        reponse.raise_for_status()
+        data = json.loads(reponse.json()["message"]["content"])
         return {
             "title": data.get("title", activite["titre"]),
             "mauvais": bool(data.get("mauvais", False)),
             "confiance": float(data.get("confiance", 0.5)),
             "justification": data.get("justification", ""),
         }
-    except (json.JSONDecodeError, KeyError, ValueError, TypeError):
+    except (requests.RequestException, json.JSONDecodeError, KeyError, ValueError, TypeError):
         return None
 
 
 def analyser_avec_llm(activite: dict) -> dict:
     premier = _appel_llm_unique(activite, temperature=0.0)
     if premier is None:
-        return _incertain(activite, "Réponse du modèle illisible (JSON invalide).")
+        return _incertain(activite, "Réponse du modèle illisible (JSON invalide ou serveur injoignable).")
 
     if premier["confiance"] < SEUIL_CONFIANCE:
         return _incertain(
@@ -278,10 +285,6 @@ def analyser_avec_llm(activite: dict) -> dict:
 
 # ============================================================
 # Point d'entrée principal
-#
-# "mauvais" peut valoir True, False, ou None (incertain). Côté score :
-# un None ne doit JAMAIS être traité comme False — c'est "à vérifier",
-# pas "c'est bon".
 # ============================================================
 
 def analyser_activite(activite_brute: dict) -> dict:
@@ -305,13 +308,10 @@ def analyser_activite(activite_brute: dict) -> dict:
 if __name__ == "__main__":
     cas_de_test = [
         {'application': 'Code.exe', 'titre': 'test.py - developpement - Visual Studio Code'},
-        # {'application': 'chrome.exe', 'titre': '(9) Benson Boone - Beautiful Things (Official Music Video) - YouTube - Google Chrome'},
-        # {'application': 'chrome.exe', 'titre': 'Django pour les débutants : Introduction - YouTube - Google Chrome'},
-        # {'application': 'chrome.exe', 'titre': 'Historique de visionnage - YouTube - Google Chrome'}
     ]
     for activite_brute in cas_de_test:
         data = analyser_activite(activite_brute)
         print(json.dumps(data, indent=4, ensure_ascii=False))
         print("---")
 
-print(time.time() - t,'secondes')
+print(time.time() - t, 'secondes')

@@ -135,7 +135,7 @@ SPECTACULAR_SETTINGS = {
 # Configuration de SimpleJWT
 SIMPLE_JWT = {
     # Durée de vie de l'Access Token (ex: 30 minutes, 1 heure, 1 jour...)
-    'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
     
     # Durée de vie du Refresh Token (ex: 1 jour, 7 jours...)
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
