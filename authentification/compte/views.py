@@ -7,7 +7,7 @@ from .serializers import UserSerializer,SessionActiviteSerializer,BadActionSeria
 #Import des classes du sérializers 
 from .models import Session_activite,Application,Bad_action 
 from rest_framework import generics 
-
+ 
 # Create your views here.
 
 
@@ -73,3 +73,5 @@ class Bad_actionModelView(viewsets.ModelViewSet):
         return serializer.save(application=application)
     
     permission_classes = [IsAuthenticated]
+
+

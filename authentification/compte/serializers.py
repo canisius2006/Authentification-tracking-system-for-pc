@@ -5,11 +5,14 @@ from django.utils import timezone
 from django.db.models import F 
 import random
 from datetime import datetime 
+
+
 User = get_user_model()
 
 
 #La fonction pour pouvoir créer un matricule automatiquement 
 def create_matricule():
+    #La clé de vérification de notre côté est 97
     a = f'{int(str(datetime.now().year)[2:]):02d}'
     b = f'{datetime.now().month:02d}' 
     c = f'{random.randint(1,999):03d}'
@@ -21,7 +24,7 @@ def create_matricule():
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id','username','email','matricule','password','photo_de_profil','telephone','sexe','score','created_at','updated_at']
+        fields = ['id','username','email','matricule','password','photo_de_profil','telephone','sexe','score','created_at','updated_at','first_name','last_name']
         read_only_fields = ['id','created_at','updated_at']
 
 
@@ -31,7 +34,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User 
-        fields = ["username",'password','email','telephone','photo_de_profil','sexe']
+        fields = ["username",'password','email','telephone','photo_de_profil','sexe','first_name','last_name']
 
     def create(self,validated_data):
         matricule = create_matricule()
@@ -90,3 +93,5 @@ class BadActionSerializer(serializers.ModelSerializer):
         application.save(update_fields=['heure_fin'])
         user.save(update_fields=['score'])
         return action 
+
+

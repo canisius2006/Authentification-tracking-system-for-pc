@@ -55,8 +55,14 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
 AUTH_USER_MODEL = 'compte.User'
+
 ROOT_URLCONF = 'authentification.urls'
+
+AUTHENTICATION_BACKENDS = [
+    'compte.authentication.MultifieldAuthBackend'
+]
 
 TEMPLATES = [
     {

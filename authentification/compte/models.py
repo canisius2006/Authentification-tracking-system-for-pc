@@ -4,6 +4,7 @@ from django.conf import settings
 from django.utils import timezone
 # Create your models here.
 class User(AbstractUser):
+    email = models.EmailField(unique=True,null=True,blank=True)
     matricule = models.CharField(verbose_name='Matricule',unique=True,max_length=20)
     photo_de_profil = models.ImageField(verbose_name='Photo de Profil',upload_to='Profil/',blank=True,null=True)
     telephone = models.CharField(verbose_name='Numéro de Telephone',max_length=20,unique=True,blank=True,null=True)

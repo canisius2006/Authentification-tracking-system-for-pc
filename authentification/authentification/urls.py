@@ -30,6 +30,7 @@ from drf_spectacular.views import (
 )
 
 from compte import views
+
 urlpatterns = [
     path('',views.accueil),
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
