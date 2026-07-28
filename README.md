@@ -81,7 +81,7 @@ Le compte MySQL utilisé par l'application doit avoir les droits d'insertion :
 
 ```
 Utilisateur : inscription
-Mot de passe : CLUBIA
+Mot de passe : ******
 Base : authentification
 ```
 
