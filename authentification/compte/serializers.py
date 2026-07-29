@@ -55,10 +55,10 @@ class ApplicationSerializer(serializers.ModelSerializer):
     class Meta:
         model=Application
         fields = ['id','session','nom','heure_debut','heure_fin']
-        read_only_fields = ['heure_debut','id','session']
+        read_only_fields = ['heure_debut','id',]
 
     def create(self,validated_data):
-        application = Application.objects.filter(session=validated_data['session'],nom=validated_data['nom']).first()
+        application = Application.objects.filter(session=validated_data.get('session'),nom=validated_data.get('nom')).first()
         if application is not None:
             application.heure_fin = timezone.now().time()
             application.save(update_fields=['heure_fin'])
@@ -70,16 +70,18 @@ class ApplicationSerializer(serializers.ModelSerializer):
         return application
 
 class BadActionSerializer(serializers.ModelSerializer):
+    application = serializers.CharField(write_only=True)
     class Meta:
         model = Bad_action
         fields = ["id",'application','titre',"text_input",'justification','created_at']
-        read_only_fields = ["created_at",'id','application']
+        read_only_fields = ["created_at",'id']
     def create(self,validated_data):
-        action = Bad_action.objects.filter(application=validated_data['application'],titre=validated_data['titre'],text_input=validated_data['text_input']).first()
+        action = Bad_action.objects.filter(application=validated_data.get('application'),titre=validated_data.get('titre'),text_input=validated_data.get('text_input')).first()
         if action is not None:
             pass
         else:
             action = Bad_action.objects.create(**validated_data)
+            user = action.application.session.user 
             user.score  = F('score') - 2
 
         user = action.application.session.user 

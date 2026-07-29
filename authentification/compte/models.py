@@ -19,12 +19,16 @@ class User(AbstractUser):
     def __str__(self):
         return f"{self.username}"
 
-
+def heure_actuelle():
+    """Cette fonction va nous permettre d'avoir l'heure actuelle """
+    return timezone.localtime().time()
+def jour_actuelle():
+    return timezone.localtime().date
 class Session_activite(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.CASCADE,related_name="sessions")
-    jour = models.DateField(verbose_name='Jour',auto_now_add=True)
-    heure_debut = models.TimeField(verbose_name='Heure de debut',auto_now_add=True)
-    heure_fin = models.TimeField(verbose_name='Heure de fin',default=timezone.now)
+    jour = models.DateField(verbose_name='Jour',default=jour_actuelle)
+    heure_debut = models.TimeField(verbose_name='Heure de debut',default=heure_actuelle)
+    heure_fin = models.TimeField(verbose_name='Heure de fin',default=heure_actuelle)
 
 
     def __str__(self):
@@ -33,8 +37,8 @@ class Session_activite(models.Model):
 class Application(models.Model):
     session = models.ForeignKey(Session_activite,on_delete=models.CASCADE,related_name='applications')
     nom = models.CharField(max_length=25,verbose_name='Nom')
-    heure_debut = models.TimeField(verbose_name='Heure de debut',auto_now_add=True)
-    heure_fin = models.TimeField(verbose_name='Heure de fin',default=timezone.now)
+    heure_debut = models.TimeField(verbose_name='Heure de debut',default=heure_actuelle)
+    heure_fin = models.TimeField(verbose_name='Heure de fin',default=heure_actuelle)
 
     def __str__(self):
         return self.nom

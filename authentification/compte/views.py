@@ -9,6 +9,7 @@ from .models import Session_activite,Application,Bad_action
 from rest_framework import generics 
 from rest_framework.exceptions import ValidationError 
 from rest_framework import serializers
+from django.db.models import Q
 # Create your views here.
 
 
@@ -41,6 +42,8 @@ class SessionActiviteModelView(viewsets.ModelViewSet):
     def get_queryset(self):
         return Session_activite.objects.filter(user=self.request.user)
     
+    def perform_create(self, serializer):
+        return serializer.save(user=self.request.user)
     
     permission_classes = [IsAuthenticated]
 
@@ -68,14 +71,15 @@ class Bad_actionModelView(viewsets.ModelViewSet):
         return Bad_action.objects.filter(application__session__user=self.request.user)
     
     def perform_create(self, serializer):
-        session_id = self.request.data.get('session')
-        session = Session_activite.objects.filter(user=self.request.user,id=session_id).first()
-        if session is None:
+        application_id = self.request.data.get('application')
+        try:
+            application = Application.objects.get(id=int(application_id))
+        except (ValueError, Application.DoesNotExist):
+            application = Application.objects.filter(nom=application_id).first()
+        if application is None:
             raise serializers.ValidationError(
             "Session invalide.")
-        application = Application.objects.filter(session=session,nom=self.request.data['nom']).first()
-        if application is None:
-            raise ValidationError( "L'application n'existe pas encore")
+        
         return serializer.save(application=application)
     
     permission_classes = [IsAuthenticated]

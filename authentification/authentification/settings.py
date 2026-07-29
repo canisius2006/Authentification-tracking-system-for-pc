@@ -156,7 +156,7 @@ SIMPLE_JWT = {
 
 LANGUAGE_CODE = 'fr-Fr'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = "Africa/Porto-Novo"
 
 USE_I18N = True
 
