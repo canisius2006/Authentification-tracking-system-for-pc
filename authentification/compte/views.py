@@ -12,6 +12,7 @@ from rest_framework import serializers
 from django.db.models import Q
 from rest_framework.views import APIView
 from rest_framework.response import Response
+
 from rest_framework import status 
 # Create your views here.
 
@@ -107,6 +108,14 @@ class CheckUsernameApiView(APIView):
                 'message': "Identifiant acceptable " if not exist else "identifiants Non disponibles "
             },status=200
         )
+
+
+class ListInscriptionPendingView(generics.ListAPIView):
+    serializer_class = UserSerializer 
+    queryset = User.objects.filter(is_active=False)
+    
+    permission_classes = [IsAdminUser]
+
 
 class ValiderInscriptionApiView(APIView):
     

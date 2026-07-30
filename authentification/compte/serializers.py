@@ -27,10 +27,10 @@ def create_code():
 
 #Ce serializer sert à consulter ou modifier le profil.
 class UserSerializer(serializers.ModelSerializer):
-    
+
     class Meta:
         model = User
-        fields = ['id','username','email','matricule','password','photo_de_profil','telephone','sexe','score','created_at','updated_at','first_name','last_name','activation_code']
+        fields = ['id','username','email','matricule','photo_de_profil','telephone','sexe','score','created_at','updated_at','first_name','last_name','activation_code']
         read_only_fields = ['id','created_at','updated_at']
 
 
@@ -110,3 +110,6 @@ class BadActionSerializer(serializers.ModelSerializer):
 class ActivationCompteSerializer(serializers.Serializer):
     username = serializers.CharField(max_length=255)
     activation_code = serializers.CharField(max_length=3)
+
+
+
