@@ -1,15 +1,23 @@
-# from datetime import datetime 
-# import random 
-# def create_matricule():
-#     #La clé de vérification de notre côté est 97
-#     a = f'{int(str(datetime.now().year)[2:]):02d}'
-#     b = f'{datetime.now().month:02d}' 
-#     c = f'{random.randint(1,999):03d}'
-#     d = f'{(97 - ((int(a+b+c))%97)):02d}'
-#     e = str(a)+b+'U'+c+str(d)
-#     return e
-# print(create_matricule())
+import cv2
 
-from django.utils import timezone 
+# Ouverture de la caméra
+cap = cv2.VideoCapture(0)
 
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        break
 
+    # Appliquer l'effet miroir horizontal (gauche/droite)
+    mirrored_frame = cv2.flip(frame, 1)
+
+    # Affichage des deux versions pour comparer
+    cv2.imshow("Originale", frame)
+    cv2.imshow("Effet Miroir", mirrored_frame)
+
+    # Quitter avec la touche 'q'
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+cap.release()
+cv2.destroyAllWindows()

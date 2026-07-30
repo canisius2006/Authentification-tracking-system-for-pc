@@ -5,6 +5,7 @@ from django.utils import timezone
 from django.db.models import F 
 import random
 from datetime import datetime 
+from drf_extra_fields.fields import HybridImageField #C'est cette bibliothèque qui nous permet de pouvoir faire l'enregistrement des photos même en base 64
 
 
 User = get_user_model()
@@ -20,27 +21,35 @@ def create_matricule():
     e = str(a)+b+'U'+c+str(d)
     return e
 
+def create_code():
+    """Cette fonction va nous permettre de pouvoir créer un code de validation d'inscription, c'est à dire pour valider l'inscription de l'utilisateur"""
+    return str(random.randint(112,999))
+
 #Ce serializer sert à consulter ou modifier le profil.
 class UserSerializer(serializers.ModelSerializer):
+    
     class Meta:
         model = User
-        fields = ['id','username','email','matricule','password','photo_de_profil','telephone','sexe','score','created_at','updated_at','first_name','last_name']
+        fields = ['id','username','email','matricule','password','photo_de_profil','telephone','sexe','score','created_at','updated_at','first_name','last_name','activation_code']
         read_only_fields = ['id','created_at','updated_at']
 
 
 #Celui-ci est utilisé uniquement lors de l'inscription.
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True,min_length=8)
-
+    photo_de_profil = HybridImageField(required=False, allow_null=True)
     class Meta:
         model = User 
         fields = ["username",'password','email','telephone','photo_de_profil','sexe','first_name','last_name']
+        
 
     def create(self,validated_data):
         matricule = create_matricule()
         while User.objects.filter(matricule=matricule).exists():
             matricule = create_matricule()
         validated_data['matricule']=matricule
+        validated_data['activation_code']=create_code()
+        validated_data['is_active']=False
         return User.objects.create_user(**validated_data)
 
 
@@ -98,3 +107,6 @@ class BadActionSerializer(serializers.ModelSerializer):
         return action 
 
 
+class ActivationCompteSerializer(serializers.Serializer):
+    username = serializers.CharField(max_length=255)
+    activation_code = serializers.CharField(max_length=3)

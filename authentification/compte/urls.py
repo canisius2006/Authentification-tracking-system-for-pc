@@ -1,5 +1,5 @@
 from rest_framework.routers import DefaultRouter 
-from .views import UserModelView,RegisterApiView,SessionActiviteModelView,ApplicationModelView,Bad_actionModelView 
+from .views import UserModelView,RegisterApiView,SessionActiviteModelView,ApplicationModelView,Bad_actionModelView,ValiderInscriptionApiView
 from django.urls import path,include
 from . import views
 #Définition des views pour nos modelsview set
@@ -12,5 +12,7 @@ router.register(r'bad_action',Bad_actionModelView,basename='bad_action')
 urlpatterns = [
     path('',views.accueil),
     path('inscription',RegisterApiView.as_view(),name='inscription'),
+    path('check-user/',views.CheckUsernameApiView.as_view(),name='checkusername'),
+    path('validation-inscription/',ValiderInscriptionApiView.as_view(),name='validation-inscription'),
     path('',include(router.urls))
 ]
