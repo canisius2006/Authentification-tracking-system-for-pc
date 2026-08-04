@@ -34,5 +34,5 @@ def application_active():
     }
 
 
-
-print(application_active())
+if __name__=='__main__':
+    print(application_active())
