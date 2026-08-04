@@ -36,7 +36,8 @@ import base64
 import tkinter as tk
 import customtkinter as ctk
 from PIL import Image, ImageOps
-import requests 
+
+import re
 
 DEFAULT_API_BASE_URL = "http://127.0.0.1:8000/api/"
 REGISTER_ENDPOINT = "/inscription"
@@ -186,11 +187,11 @@ class MainApp(ctk.CTk):
         title_block.grid(row=0, column=0, padx=32, pady=(26, 20), sticky="w")
 
         ctk.CTkLabel(
-            title_block, text="Plateforme d'authentification",
+            title_block, text="Plateforme d'authentification du CAEB",
             font=font(26, "bold"), text_color=COLORS["text"], anchor="w",
         ).pack(anchor="w")
         ctk.CTkLabel(
-            title_block, text="Connexion et inscription sécurisées via JWT",
+            title_block, text="Connexion et inscription sécurisées ",
             font=font(14), text_color=COLORS["text_muted"], anchor="w",
         ).pack(anchor="w", pady=(4, 0))
 
@@ -348,7 +349,7 @@ class LoginPage(ctk.CTkFrame):
             self,
             text=(
                 "Connectez-vous avec votre matricule, téléphone, email ou nom d'utilisateur.\n"
-                "Un jeton d'accès et un jeton de rafraîchissement vous seront délivrés."
+                
             ),
             font=font(15), text_color=COLORS["text_muted"], wraplength=760, justify="center",
         ).pack(pady=(0, 32))
@@ -389,7 +390,7 @@ class LoginPage(ctk.CTkFrame):
         secondary_button(button_row, "\U00002728  Créer un compte", lambda: controller.show_page("register"), width=240).pack(side="left")
 
         self.server_info = ctk.CTkLabel(
-            self, text=f"Serveur API configuré : {controller.api_base_url}",
+            self, text=f"En cas d'incompréhension ou de difficultés à se connecter, se rapprocher d'un administrateur",
             text_color=COLORS["text_muted"], font=font(12),
         )
         self.server_info.pack(pady=(16, 0))
@@ -430,7 +431,7 @@ class LoginPage(ctk.CTkFrame):
         access = self.controller.access_token or "non fourni"
         refresh = self.controller.refresh_token or "non fourni"
         self.status_label.configure(text="\U00002705 Connexion réussie.", text_color=COLORS["success"])
-        self.result_label.configure(text=f"Jeton d'accès : {access}\nJeton de rafraîchissement : {refresh}")
+        #self.result_label.configure(text=f"Jeton d'accès : {access}\nJeton de rafraîchissement : {refresh}")
 
 
 class RegisterPage(ctk.CTkFrame):
@@ -617,8 +618,8 @@ class RegisterPage(ctk.CTkFrame):
 
         ctk.CTkLabel(
             frame,
-            text="\U0001F512 La photo n'est jamais enregistrée sur votre disque : elle reste en mémoire et n'est envoyée qu'à la création du compte.",
-            font=font(12), text_color=COLORS["text_muted"], wraplength=680, justify="left",
+            text="\U0001F512 Assurez-vous que votre visage soit bien visible sur la photo",
+            font=font(15), text_color=COLORS["text_muted"], wraplength=680, justify="left",
         ).pack(padx=32, pady=(0, 10), anchor="w")
 
         return frame
@@ -661,7 +662,7 @@ class RegisterPage(ctk.CTkFrame):
         self.username_entry.pack(padx=32, pady=(0, 14), fill="x")
         self.username_entry.bind("<Return>", lambda _e: self.next_step())
 
-        ctk.CTkLabel(frame, text="Ce nom d'utilisateur doit être unique.", font=font(13), text_color=COLORS["text_muted"]).pack(padx=32, pady=(0, 24), anchor="w")
+        ctk.CTkLabel(frame, text="Votre nom d'utilisateur est votre nom de compte. Prenez un nom qui vous sera facile à garder", font=font(15), text_color=COLORS["text_muted"]).pack(padx=32, pady=(0, 24), anchor="w")
 
         return frame
 
@@ -674,12 +675,12 @@ class RegisterPage(ctk.CTkFrame):
         
         self.code_entry = ctk.CTkEntry(
             frame, textvariable=self.code_var, placeholder_text="Sera converti en minuscules",
-            height=54, font=font(15), corner_radius=12,
+            height=74, font=font(25), corner_radius=12,width=100
         )
         self.code_entry.pack(padx=32, pady=(0, 14), fill="x")
         self.code_entry.bind("<Return>", lambda _e: self.next_step())
 
-        ctk.CTkLabel(frame, text="Rapprocher vous d'un administrateur pour pouvoir recevoir le code.", font=font(13), text_color=COLORS["text_muted"]).pack(padx=32, pady=(0, 24), anchor="w")
+        ctk.CTkLabel(frame, text="Rapprocher vous d'un administrateur pour pouvoir recevoir le code.", font=font(15), text_color=COLORS["text_muted"]).pack(padx=32, pady=(0, 24), anchor="w")
 
         return frame
 
@@ -694,11 +695,23 @@ class RegisterPage(ctk.CTkFrame):
             entry.configure(show="*")
             button.configure(text="\U0001F441")
 
+    
+
     def _normalize_username(self, *_args):
         current_value = self.username_var.get()
-        lower_value = current_value.lower()
-        if current_value != lower_value:
-            self.username_var.set(lower_value)
+
+        # Mettre en minuscule
+        value = current_value.lower()
+
+        # Supprimer tous les espaces
+        value = value.replace(" ", "")
+
+        # Supprimer les caractères non autorisés
+        value = re.sub(r'[^a-z0-9_]', '', value)
+
+        # Mettre à jour seulement si nécessaire
+        if current_value != value:
+            self.username_var.set(value)
 
     # ------------------------------------------------------------------
     # Photo de profil — caméra intégrée directement dans la page.
@@ -879,13 +892,19 @@ class RegisterPage(ctk.CTkFrame):
         total = len(self.step_frames)
         self.progress_bar.set((step_index + 1) / total)
         self.step_label.configure(text=f"Étape {step_index + 1} / {total} \u00B7 {self.STEP_TITLES[step_index]}")
-        self.back_button.configure(state="normal" if step_index > 0 else "disabled")
+        
         self.next_button.configure(text="\U00002705  Créer le compte" if step_index == total - 2 else "Suivant  \U000027A1")
         self.next_button.configure(text="\U00002705  Confirmer" if step_index == total - 1 else "Suivant  \U000027A1")
         self.status_label.configure(text="")
 
         if step_index == self.PHOTO_STEP_INDEX:
             self._start_camera_preview()
+
+        if step_index >0:
+            self.back_button.configure(state="normal")
+
+        if step_index==4:
+            self.back_button.pack_forget()
 
         # On remonte en haut de la page à chaque changement d'étape, pour
         # que l'utilisateur voie toujours le début du formulaire (et non
@@ -1058,12 +1077,12 @@ class RegisterPage(ctk.CTkFrame):
 
         self.controller.store_tokens(result)
         self.status_label.configure(text="\U00002705 Inscription Partielle réussie.", text_color=COLORS["pending"])
-        self.result_label.configure(
-            text=(
-                f"Jeton d'accès : {self.controller.access_token or 'non fourni'}\n"
-                f"Jeton de rafraîchissement : {self.controller.refresh_token or 'non fourni'}"
-            )
-        )
+        #self.result_label.configure(
+            #text=(
+                #f"Jeton d'accès : {self.controller.access_token or 'non fourni'}\n"
+                #f"Jeton de rafraîchissement : {self.controller.refresh_token or 'non fourni'}"
+            #)
+        #)
 
         # Seulement maintenant qu'on sait que le serveur a bien créé le
         # compte (partiellement, en attente du code) on avance vers
@@ -1095,12 +1114,12 @@ class RegisterPage(ctk.CTkFrame):
 
         self.controller.store_tokens(result)
         self.status_label.configure(text="\U00002705 Inscription réussie.", text_color=COLORS["success"])
-        self.result_label.configure(
-            text=(
-                f"Jeton d'accès : {self.controller.access_token or 'non fourni'}\n"
-                f"Jeton de rafraîchissement : {self.controller.refresh_token or 'non fourni'}"
-            )
-        )
+        # self.result_label.configure(
+        #     text=(
+        #         f"Jeton d'accès : {self.controller.access_token or 'non fourni'}\n"
+        #         f"Jeton de rafraîchissement : {self.controller.refresh_token or 'non fourni'}"
+        #     )
+        # )
 
     
 
