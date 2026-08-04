@@ -17,6 +17,7 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema, OpenApiResponse
 from drf_spectacular.utils import extend_schema
 from rest_framework import status 
+from rest_framework_simplejwt.tokens import RefreshToken 
 # Create your views here.
 
 
@@ -143,10 +144,16 @@ class ValiderInscriptionApiView(APIView):
             user.is_active = True 
             user.activation_code=None 
             user.save()
+
+            refresh = RefreshToken.for_user(user)
+            
             return Response({
-                'message':'compte activé'},
+                'message':'compte activé',
+                "refresh":str(refresh),
+                "access":str(refresh.access_token)},
                 status=status.HTTP_200_OK
             )
+        
         else:
             return Response(
                 {

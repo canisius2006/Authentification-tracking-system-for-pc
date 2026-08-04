@@ -7,6 +7,8 @@ import random
 from datetime import datetime 
 
 from drf_extra_fields.fields import HybridImageField #C'est cette bibliothèque qui nous permet de pouvoir faire l'enregistrement des photos même en base 64
+from rest_framework_simplejwt.tokens import RefreshToken 
+from rest_framework.response import Response
 
 
 User = get_user_model()
@@ -60,7 +62,8 @@ class RegisterSerializer(serializers.ModelSerializer):
         if not email or not email.strip():
             validated_data['email'] = None
 
-        return User.objects.create_user(**validated_data)
+        user = User.objects.create_user(**validated_data)
+        return user
     
     def validate_telephone(self, value):
         if value == "" or value == " ":
