@@ -12,7 +12,10 @@ from rest_framework import serializers
 from django.db.models import Q
 from rest_framework.views import APIView
 from rest_framework.response import Response
-
+from rest_framework.views import APIView 
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema, OpenApiResponse
+from drf_spectacular.utils import extend_schema
 from rest_framework import status 
 # Create your views here.
 
@@ -118,7 +121,16 @@ class ListInscriptionPendingView(generics.ListAPIView):
 
 
 class ValiderInscriptionApiView(APIView):
-    
+    @extend_schema(
+        request=ActivationCompteSerializer,
+        responses={
+            200: OpenApiResponse(description="Compte activé avec succès"),
+            404: OpenApiResponse(description="Utilisateur inexistant"),
+            406: OpenApiResponse(description="Code d'activation incorrect"),
+        },
+        summary="Activer un compte utilisateur",
+        description="Valide le code d'activation envoyé et active le compte si le code correspond.",
+    )
     def post(self,request):
         serializer = ActivationCompteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)

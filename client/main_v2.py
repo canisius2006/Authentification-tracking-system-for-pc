@@ -36,10 +36,12 @@ import base64
 import tkinter as tk
 import customtkinter as ctk
 from PIL import Image, ImageOps
+import requests 
 
 DEFAULT_API_BASE_URL = "http://127.0.0.1:8000/api/"
 REGISTER_ENDPOINT = "/inscription"
 LOGIN_ENDPOINT = "/token/"
+CODEVALIDATION_ENDPOINT = "/validation-inscription/"
 
 EMAIL_REGEX = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 PHONE_REGEX = re.compile(r"^[+]?\d{6,15}$")
@@ -71,6 +73,7 @@ COLORS = {
     "success_soft": "#1c2e28",
     "danger": "#e2596b",
     "danger_soft": "#2e1e22",
+    'pending':"#d2d230",
 }
 
 FONT_FAMILY = "Segoe UI"
@@ -312,9 +315,15 @@ class MainApp(ctk.CTk):
         def worker():
             try:
                 result = self.perform_request(endpoint, payload)
-                self.after(0, lambda: callback(success=True, result=result))
+                self.after(
+                    0,
+                    lambda result=result: callback(success=True, result=result)
+                )
             except Exception as error:
-                self.after(0, lambda: callback(success=False, error=error))
+                self.after(
+                    0,
+                    lambda error=error: callback(success=False, error=error)
+                )
 
         threading.Thread(target=worker, daemon=True).start()
 
@@ -323,6 +332,9 @@ class MainApp(ctk.CTk):
 
     def send_register_request(self, payload, callback):
         self._send_request(REGISTER_ENDPOINT, payload, callback)
+
+    def send_codevalidation_request(self,payload,callback):
+        self._send_request(CODEVALIDATION_ENDPOINT,payload,callback)
 
 
 class LoginPage(ctk.CTkFrame):
@@ -427,6 +439,7 @@ class RegisterPage(ctk.CTkFrame):
         "Contact et photo de profil",
         "Mot de passe",
         "Nom d'utilisateur",
+        "Code de Validation"
     ]
 
     def __init__(self, parent, controller):
@@ -452,7 +465,9 @@ class RegisterPage(ctk.CTkFrame):
         self.camera_capture = None
         self._camera_active = False
         self._camera_after_id = None
-
+        # --------------------------------------------------------------
+        # Variable pour savoir si la fonction de registration a déjà été exécuté 
+        self.executed = False #cette variable pour savoir si l'inscription  a déjà été exécutée
         # --------------------------------------------------------------
         # IMPORTANT (correction du bug d'affichage) :
         # Toute la page (titre, barre de progression, contenu de l'étape,
@@ -519,7 +534,7 @@ class RegisterPage(ctk.CTkFrame):
     # Construction des étapes
     # ------------------------------------------------------------------
     def _build_steps(self):
-        return [self._create_step_one(), self._create_step_two(), self._create_step_three(), self._create_step_four()]
+        return [self._create_step_one(), self._create_step_two(), self._create_step_three(), self._create_step_four(),self._create_step_five()]
 
     def _step_header(self, frame, index):
         ctk.CTkLabel(
@@ -647,6 +662,24 @@ class RegisterPage(ctk.CTkFrame):
         self.username_entry.bind("<Return>", lambda _e: self.next_step())
 
         ctk.CTkLabel(frame, text="Ce nom d'utilisateur doit être unique.", font=font(13), text_color=COLORS["text_muted"]).pack(padx=32, pady=(0, 24), anchor="w")
+
+        return frame
+
+    def _create_step_five(self):
+        frame = ctk.CTkFrame(self.steps_container, fg_color="transparent")
+        self._step_header(frame, 4)
+
+        field_label(frame, "Code de Validation d'inscription")
+        self.code_var = ctk.StringVar()
+        
+        self.code_entry = ctk.CTkEntry(
+            frame, textvariable=self.code_var, placeholder_text="Sera converti en minuscules",
+            height=54, font=font(15), corner_radius=12,
+        )
+        self.code_entry.pack(padx=32, pady=(0, 14), fill="x")
+        self.code_entry.bind("<Return>", lambda _e: self.next_step())
+
+        ctk.CTkLabel(frame, text="Rapprocher vous d'un administrateur pour pouvoir recevoir le code.", font=font(13), text_color=COLORS["text_muted"]).pack(padx=32, pady=(0, 24), anchor="w")
 
         return frame
 
@@ -847,7 +880,8 @@ class RegisterPage(ctk.CTkFrame):
         self.progress_bar.set((step_index + 1) / total)
         self.step_label.configure(text=f"Étape {step_index + 1} / {total} \u00B7 {self.STEP_TITLES[step_index]}")
         self.back_button.configure(state="normal" if step_index > 0 else "disabled")
-        self.next_button.configure(text="\U00002705  Créer le compte" if step_index == total - 1 else "Suivant  \U000027A1")
+        self.next_button.configure(text="\U00002705  Créer le compte" if step_index == total - 2 else "Suivant  \U000027A1")
+        self.next_button.configure(text="\U00002705  Confirmer" if step_index == total - 1 else "Suivant  \U000027A1")
         self.status_label.configure(text="")
 
         if step_index == self.PHOTO_STEP_INDEX:
@@ -876,11 +910,25 @@ class RegisterPage(ctk.CTkFrame):
             return
         if self.current_step == 2 and not self._validate_step_three():
             return
+        if self.current_step == 3 and not self._validate_step_four():
+            return
+
+        if self.current_step == 3:
+            # Toutes les informations nécessaires sont réunies (nom, contact,
+            # mot de passe, nom d'utilisateur) : on envoie l'inscription ici,
+            # et seulement ici. L'avancée vers l'étape "Code de validation"
+            # se fait dans registration_callback, uniquement en cas de succès
+            # (la requête est asynchrone, on ne doit pas avancer avant d'avoir
+            # la réponse du serveur).
+            self._submit_registration()
+            return
+
         if self.current_step < len(self.step_frames) - 1:
             self.show_step(self.current_step + 1)
             self._lock_navigation()
             return
-        self._submit_registration()
+
+        self._submit_registration_code()
 
     def previous_step(self):
         if self.current_step > 0 and not self._request_in_flight and not self._navigating:
@@ -938,15 +986,24 @@ class RegisterPage(ctk.CTkFrame):
             self.status_label.configure(text="\U000026A0 Les mots de passe ne correspondent pas.", text_color=COLORS["danger"])
             return False
         self.status_label.configure(text="")
+        
         return True
 
     def _validate_step_four(self):
+
         if not self.username_entry.get().strip():
             self.status_label.configure(text="\U000026A0 Le nom d'utilisateur est requis.", text_color=COLORS["danger"])
             return False
+        
         self.status_label.configure(text="")
         return True
-
+    
+    def _validate_step_five(self):
+        if not self.code_entry.get().strip():
+            self.status_label.configure(text="\U000026A0 Le code est requis.", text_color=COLORS["danger"])
+            return False
+        self.status_label.configure(text="")
+        return True
     # ------------------------------------------------------------------
     # Soumission
     # ------------------------------------------------------------------
@@ -966,8 +1023,13 @@ class RegisterPage(ctk.CTkFrame):
         return base64.b64encode(buffer.getvalue()).decode("ascii")
 
     def _submit_registration(self):
-        if not self._validate_step_four():
+        # Empêche une double soumission si l'utilisateur reclique pendant
+        # qu'une inscription est déjà partie ou déjà réussie pour cette
+        # session d'étapes. Réinitialisé à False en cas d'échec (voir
+        # registration_callback) pour permettre de corriger et réessayer.
+        if self.executed:
             return
+        self.executed = True
 
         payload = {
             "first_name": self.first_name_entry.get().strip(),
@@ -983,8 +1045,49 @@ class RegisterPage(ctk.CTkFrame):
         self.status_label.configure(text="Création du compte en cours...", text_color=COLORS["text_muted"])
         self.result_label.configure(text="")
         self.controller.send_register_request(payload, self.registration_callback)
+        
 
     def registration_callback(self, success, result=None, error=None):
+        self._set_loading(False)
+        if not success:
+            # L'inscription a échoué : on autorise une nouvelle tentative
+            # (l'utilisateur peut corriger un champ et recliquer sur Suivant).
+            self.executed = False
+            self.status_label.configure(text="\U0000274C " + self.controller._format_error(error), text_color=COLORS["danger"])
+            return
+
+        self.controller.store_tokens(result)
+        self.status_label.configure(text="\U00002705 Inscription Partielle réussie.", text_color=COLORS["pending"])
+        self.result_label.configure(
+            text=(
+                f"Jeton d'accès : {self.controller.access_token or 'non fourni'}\n"
+                f"Jeton de rafraîchissement : {self.controller.refresh_token or 'non fourni'}"
+            )
+        )
+
+        # Seulement maintenant qu'on sait que le serveur a bien créé le
+        # compte (partiellement, en attente du code) on avance vers
+        # l'étape "Code de validation".
+        if self.current_step < len(self.step_frames) - 1:
+            self.show_step(self.current_step + 1)
+            self._lock_navigation()
+
+#Ici, c'est la fonction pour pouvoir envoyer le code de validation
+
+    def _submit_registration_code(self):
+        if not self._validate_step_five():
+            return
+
+        payload = {
+             "username": self.username_entry.get().strip(),
+            "activation_code": self.code_entry.get().strip(),
+        }
+        self._set_loading(True)
+        self.status_label.configure(text="Vérification du code en cours...", text_color=COLORS["text_muted"])
+        self.result_label.configure(text="")
+        self.controller.send_codevalidation_request(payload, self.registration_callback_code)
+
+    def registration_callback_code(self, success, result=None, error=None):
         self._set_loading(False)
         if not success:
             self.status_label.configure(text="\U0000274C " + self.controller._format_error(error), text_color=COLORS["danger"])
@@ -999,6 +1102,7 @@ class RegisterPage(ctk.CTkFrame):
             )
         )
 
+    
 
 if __name__ == "__main__":
     app = MainApp()

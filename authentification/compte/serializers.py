@@ -5,6 +5,7 @@ from django.utils import timezone
 from django.db.models import F 
 import random
 from datetime import datetime 
+
 from drf_extra_fields.fields import HybridImageField #C'est cette bibliothèque qui nous permet de pouvoir faire l'enregistrement des photos même en base 64
 
 
@@ -50,7 +51,38 @@ class RegisterSerializer(serializers.ModelSerializer):
         validated_data['matricule']=matricule
         validated_data['activation_code']=create_code()
         validated_data['is_active']=False
+
+        telephone = validated_data.get('telephone')
+        if not telephone or not telephone.strip():
+            validated_data['telephone'] = None
+
+        email = validated_data.get('email')
+        if not email or not email.strip():
+            validated_data['email'] = None
+
         return User.objects.create_user(**validated_data)
+    
+    def validate_telephone(self, value):
+        if value == "" or value == " ":
+            return None
+        return value
+    
+    def validate_email(self, value):
+        if value in ("", " ", None):
+            return None
+
+        value = value.strip().lower()
+
+        qs = User.objects.filter(email=value)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+
+        if qs.exists():
+            raise serializers.ValidationError("Cet email est déjà utilisé.")
+
+        return value
+
+    
 
 
 #cette classe pour l'enregistrement de la session utilisateur 
@@ -110,6 +142,7 @@ class BadActionSerializer(serializers.ModelSerializer):
 class ActivationCompteSerializer(serializers.Serializer):
     username = serializers.CharField(max_length=255)
     activation_code = serializers.CharField(max_length=3)
+
 
 
 
