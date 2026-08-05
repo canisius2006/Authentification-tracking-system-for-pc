@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from django.http import HttpResponse
+from django.http import HttpResponse,JsonResponse
 from django.contrib.auth import get_user_model 
 from rest_framework import viewsets 
 from rest_framework.permissions import IsAuthenticated,IsAdminUser
@@ -18,6 +18,8 @@ from drf_spectacular.utils import extend_schema, OpenApiResponse
 from drf_spectacular.utils import extend_schema
 from rest_framework import status 
 from rest_framework_simplejwt.tokens import RefreshToken 
+from .tasks import hello
+
 # Create your views here.
 
 
@@ -165,3 +167,16 @@ class ValiderInscriptionApiView(APIView):
 
 def dash(request):
     return render(request,'pending.html')
+
+
+
+
+
+
+def ma_vue(request):
+
+    hello.delay()
+
+    return JsonResponse({
+        "message": "Tâche lancée"
+    })
