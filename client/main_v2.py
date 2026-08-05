@@ -32,7 +32,7 @@ import urllib.error
 import urllib.request
 from io import BytesIO
 import base64
-
+import requests
 import tkinter as tk
 import customtkinter as ctk
 from PIL import Image, ImageOps
@@ -973,6 +973,16 @@ class RegisterPage(ctk.CTkFrame):
     # ------------------------------------------------------------------
     # Validation
     # ------------------------------------------------------------------
+    def checker(self,params:str):
+        """Cette fonction va nous permettre de pouvoir vérifier si un des identifiants uniques existes déjà """
+        if params.strip() is None or params.strip()=='':
+            return True
+        url = 'http://127.0.0.1:8000/api/check-user/'
+        data = requests.get(url,params={'user':params})
+        data = data.json()
+        print(data.get('available'))
+        return data.get('available')
+    
     def _validate_step_one(self):
         if len(self.first_name_entry.get().strip()) < 2:
             self.status_label.configure(text="\U000026A0 Le prénom doit contenir au moins 2 caractères.", text_color=COLORS["danger"])
@@ -986,11 +996,19 @@ class RegisterPage(ctk.CTkFrame):
     def _validate_step_two(self):
         email = self.email_entry.get().strip()
         phone = self.phone_entry.get().strip().replace(" ", "")
+        email_check = self.checker(email)
+        phone_check = self.checker(phone)
         if email and not EMAIL_REGEX.match(email):
             self.status_label.configure(text="\U000026A0 Veuillez entrer une adresse email valide.", text_color=COLORS["danger"])
             return False
         if phone and not PHONE_REGEX.match(phone):
             self.status_label.configure(text="\U000026A0 Veuillez entrer un numéro de téléphone valide.", text_color=COLORS["danger"])
+            return False
+        if not email_check:
+            self.status_label.configure(text="\U000026A0 Email indisponible ou déjà utilisé", text_color=COLORS["danger"])
+            return False
+        if not phone_check:
+            self.status_label.configure(text="\U000026A0 Numéro de téléphone indisponible ou déjà utilisé", text_color=COLORS["danger"])
             return False
         self.status_label.configure(text="")
         return True
@@ -1013,7 +1031,9 @@ class RegisterPage(ctk.CTkFrame):
         if not self.username_entry.get().strip():
             self.status_label.configure(text="\U000026A0 Le nom d'utilisateur est requis.", text_color=COLORS["danger"])
             return False
-        
+        if not self.checker(self.username_entry.get().strip()):
+            self.status_label.configure(text="\U000026A0 Nom d'utilisateur indisponible ou déjà utilisé", text_color=COLORS["danger"])
+            return False
         self.status_label.configure(text="")
         return True
     
