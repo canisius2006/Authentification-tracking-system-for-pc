@@ -162,3 +162,6 @@ class ValiderInscriptionApiView(APIView):
                 ,
                     status=status.HTTP_406_NOT_ACCEPTABLE
             )
+
+def dash(request):
+    return render(request,'pending.html')

@@ -15,5 +15,6 @@ urlpatterns = [
     path('check-user/',views.CheckUsernameApiView.as_view(),name='checkusername'),
     path('validation-inscription/',ValiderInscriptionApiView.as_view(),name='validation-inscription'),
     path('liste-pending/',ListInscriptionPendingView.as_view(),name='liste-pending'),
+    
     path('',include(router.urls))
 ]

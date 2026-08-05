@@ -1051,8 +1051,8 @@ class RegisterPage(ctk.CTkFrame):
         self.executed = True
 
         payload = {
-            "first_name": self.first_name_entry.get().strip(),
-            "last_name": self.last_name_entry.get().strip(),
+            "first_name": self.first_name_entry.get().strip().capitalize(),
+            "last_name": self.last_name_entry.get().strip().upper(),
             "sexe": self.gender_var.get(),
             "email": self.email_entry.get().strip(),
             "telephone": self.phone_entry.get().strip(),
