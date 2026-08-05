@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Administration - Inscriptions en Attente (API Ready)</title>
+    <title>Inscriptions en Attente</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
@@ -42,6 +42,12 @@
             background: #cbd5e1;
             border-radius: 4px;
         }
+        /* Progress ring animation for auto-refresh */
+        .timer-ring-circle {
+            transition: stroke-dashoffset 1s linear;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
     </style>
 </head>
 <body class="h-full font-sans text-slate-800 antialiased bg-slate-50 flex flex-col">
@@ -52,28 +58,61 @@
     <!-- Header Navbar -->
     <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex items-center justify-between h-16">
+            <div class="flex flex-col sm:flex-row items-center justify-between py-3 sm:py-0 sm:h-16 gap-3 sm:gap-0">
                 <!-- Brand Title -->
-                <div class="flex items-center space-x-3">
-                    <div class="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center text-white shadow-md shadow-amber-500/20 font-bold text-lg">
-                        <i class="fa-solid fa-user-clock"></i>
-                    </div>
-                    <div>
-                        <h1 class="text-lg font-bold text-slate-900 leading-tight">Administration Pending Users</h1>
-                        <p class="text-xs text-amber-600 font-medium flex items-center gap-1.5">
-                            <span id="api-status-dot" class="w-2 h-2 rounded-full bg-slate-300"></span>
-                            <span id="api-status-text">Prêt pour connexion API</span>
-                        </p>
+                <div class="flex items-center space-x-3 w-full sm:w-auto justify-between sm:justify-start">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center text-white shadow-md shadow-amber-500/20 font-bold text-lg">
+                            <i class="fa-solid fa-user-clock"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-lg font-bold text-slate-900 leading-tight">Administration Pending Users</h1>
+                            <p class="text-xs text-amber-600 font-medium flex items-center gap-1.5">
+                                <span id="api-status-dot" class="w-2 h-2 rounded-full bg-slate-300"></span>
+                                <span id="api-status-text">Prêt pour connexion API</span>
+                            </p>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Right Action Header -->
-                <div class="flex items-center gap-3">
-                    <button onclick="toggleApiSettingsModal()" class="px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors flex items-center gap-2 border border-slate-200">
+                <!-- Right Action Header & Auto-Refresh Bar -->
+                <div class="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-end flex-wrap sm:flex-nowrap">
+                    
+                    <!-- Auto-Refresh Toggle & Timer Box -->
+                    <div class="flex items-center gap-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200">
+                        <div class="relative w-6 h-6 flex items-center justify-center">
+                            <svg class="w-6 h-6">
+                                <circle class="text-slate-200" stroke-width="2.5" stroke="currentColor" fill="transparent" r="9" cx="12" cy="12"/>
+                                <circle id="timer-progress-ring" class="text-brand-600 timer-ring-circle" stroke-width="2.5" stroke-dasharray="56.54" stroke-dashoffset="0" stroke-linecap="round" stroke="currentColor" fill="transparent" r="9" cx="12" cy="12"/>
+                            </svg>
+                            <i id="auto-refresh-icon" class="fa-solid fa-rotate text-[9px] text-brand-600 absolute"></i>
+                        </div>
+
+                        <div class="flex items-center gap-1.5">
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="auto-refresh-toggle" onchange="toggleAutoRefresh(this.checked)" class="sr-only peer" checked>
+                                <div class="w-7 h-4 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-brand-600"></div>
+                            </label>
+                            <span class="text-[11px] font-semibold text-slate-600 hidden md:inline">Auto-Sync</span>
+                        </div>
+
+                        <select id="auto-refresh-interval" onchange="changeAutoRefreshInterval(this.value)" class="bg-white text-slate-700 text-[11px] font-bold rounded-lg border border-slate-200 px-1.5 py-1 focus:ring-1 focus:ring-brand-500 outline-none cursor-pointer">
+                            <option value="10">10s</option>
+                            <option value="30" selected>30s</option>
+                            <option value="60">1m</option>
+                            <option value="120">2m</option>
+                        </select>
+                        <span id="auto-refresh-countdown" class="text-[10px] font-mono font-bold text-brand-700 bg-brand-100 px-1.5 py-0.5 rounded-md min-w-[28px] text-center">30s</span>
+                    </div>
+
+                    <!-- Config API Button -->
+                    <button onclick="toggleApiSettingsModal()" class="px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors flex items-center gap-1.5 border border-slate-200">
                         <i class="fa-solid fa-gear"></i>
-                        <span>Config API</span>
+                        <span class="hidden md:inline">Config API</span>
                     </button>
-                    <button onclick="fetchPendingUsersFromAPI()" class="px-3.5 py-2 text-xs font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-xl transition-colors flex items-center gap-2 shadow-sm">
+
+                    <!-- Manual Fetch Button -->
+                    <button onclick="fetchPendingUsersFromAPI(false)" class="px-3.5 py-2 text-xs font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-xl transition-colors flex items-center gap-2 shadow-sm">
                         <i class="fa-solid fa-rotate-right" id="refresh-icon"></i>
                         <span>Charger API</span>
                     </button>
@@ -85,20 +124,23 @@
     <!-- Main Content Area -->
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
-        <!-- Banner Config Quick Access -->
+        <!-- Banner Config & Auto-Sync Status -->
         <div id="api-config-banner" class="bg-brand-50 border border-brand-200 rounded-2xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div class="flex items-center gap-3">
                 <div class="w-9 h-9 bg-brand-600 text-white rounded-xl flex items-center justify-center text-sm flex-shrink-0">
                     <i class="fa-solid fa-plug"></i>
                 </div>
-                <div>
-                    <h4 class="text-xs font-bold text-brand-900 uppercase tracking-wider">Connexion API Backend</h4>
-                    <p class="text-xs text-brand-700 mt-0.5" id="current-api-url-display">URL API configurée : <code class="font-mono bg-white px-2 py-0.5 rounded text-brand-900 font-bold border border-brand-200">https://votre-domaine.com/api/liste-pending</code></p>
+                <div style="display:none;">
+                    <h4 class="text-xs font-bold text-brand-900 uppercase tracking-wider">Connexion API Backend & Suppression</h4>
+                    <p class="text-xs text-brand-700 mt-0.5" id="current-api-url-display">URL API Liste : <code class="font-mono bg-white px-2 py-0.5 rounded text-brand-900 font-bold border border-brand-200">http://127.0.0.1:8000/api/liste-pending</code> | Endpoint Suppression : <code class="font-mono bg-white px-2 py-0.5 rounded text-red-700 font-bold border border-red-200">/api/users/{id}/</code></p>
                 </div>
             </div>
             <div class="flex items-center gap-2 w-full md:w-auto justify-end">
+                <span id="auto-refresh-status-badge" class="px-2.5 py-1 text-[11px] font-bold text-emerald-700 bg-emerald-100 rounded-lg flex items-center gap-1.5 border border-emerald-200">
+                    <i class="fa-solid fa-circle text-[8px] animate-pulse"></i> Auto-Sync Actif
+                </span>
                 <button onclick="toggleApiSettingsModal()" class="px-3 py-1.5 text-xs font-bold text-brand-700 bg-white hover:bg-brand-100 rounded-xl border border-brand-300 transition-colors">
-                    Changer l'URL / Token
+                    Changer les URL / Token
                 </button>
             </div>
         </div>
@@ -181,7 +223,7 @@
                     Impossible de récupérer la liste des utilisateurs.
                 </p>
                 <div class="pt-2 flex items-center justify-center gap-3">
-                    <button onclick="fetchPendingUsersFromAPI()" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-xl transition-colors flex items-center gap-2">
+                    <button onclick="fetchPendingUsersFromAPI(false)" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-xl transition-colors flex items-center gap-2">
                         <i class="fa-solid fa-rotate-right"></i> Réessayer
                     </button>
                     <button onclick="loadMockDataForTesting()" class="px-4 py-2 bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-xl transition-colors border border-slate-300">
@@ -220,7 +262,7 @@
                     </div>
                     <div>
                         <h3 class="font-bold text-base">Configuration API</h3>
-                        <p class="text-xs text-slate-400">Définissez l'URL de votre endpoint liste-pending</p>
+                        <p class="text-xs text-slate-400">Définissez les endpoints API et jetons de sécurité</p>
                     </div>
                 </div>
                 <button onclick="toggleApiSettingsModal()" class="text-slate-400 hover:text-white text-lg">
@@ -230,17 +272,24 @@
 
             <form onsubmit="saveApiConfig(event)" class="p-6 space-y-4">
                 <div>
-                    <label class="block text-xs font-bold uppercase text-slate-500 mb-1">URL Endpoint API</label>
-                    <input type="url" id="api-url-input" required placeholder="https://api.votre-domaine.com/liste-pending" 
+                    <label class="block text-xs font-bold uppercase text-slate-500 mb-1">URL Endpoint Liste Pending</label>
+                    <input type="url" id="api-url-input" required placeholder="http://127.0.0.1:8000/api/liste-pending" 
                         class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono focus:ring-2 focus:ring-brand-500 focus:outline-none">
-                    <p class="text-[11px] text-slate-400 mt-1">L'API doit retourner un tableau d'objets JSON avec le schéma configuré.</p>
+                    <p class="text-[11px] text-slate-400 mt-1">L'API GET doit retourner un tableau d'objets JSON d'utilisateurs.</p>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Modèle d'URL Endpoint Suppression (DELETE)</label>
+                    <input type="text" id="api-delete-url-input" required placeholder="http://127.0.0.1:8000/api/users/{id}/" 
+                        class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                    <p class="text-[11px] text-slate-400 mt-1">Conservez le tag <code class="font-bold font-mono">{id}</code> qui sera remplacé dynamiquement lors de la requête DELETE.</p>
                 </div>
 
                 <div>
                     <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Jeton d'authentification (Bearer Token - Optionnel)</label>
                     <input type="text" id="api-token-input" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." 
                         class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono focus:ring-2 focus:ring-brand-500 focus:outline-none">
-                    <p class="text-[11px] text-slate-400 mt-1">Si fourni, il sera envoyé dans le header Authorization (`Bearer TOKEN`).</p>
+                    <p class="text-[11px] text-slate-400 mt-1">Envoyé dans l'en-tête `Authorization: Bearer TOKEN` pour GET & DELETE.</p>
                 </div>
 
                 <div class="pt-4 border-t border-slate-100 flex items-center justify-between">
@@ -355,7 +404,10 @@
             </div>
 
             <!-- Footer Action -->
-            <div class="p-4 bg-white border-t border-slate-200 flex items-center justify-end">
+            <div class="p-4 bg-white border-t border-slate-200 flex items-center justify-between">
+                <button onclick="triggerDeleteFromModal()" class="px-4 py-2 text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-xl transition-colors flex items-center gap-1.5">
+                    <i class="fa-solid fa-trash-can"></i> Supprimer cet utilisateur
+                </button>
                 <button onclick="closeUserModal()" class="px-5 py-2.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">
                     Fermer
                 </button>
@@ -363,44 +415,223 @@
         </div>
     </div>
 
+    <!-- Modal: DOUBLE CONFIRMATION DELETE USER -->
+    <div id="delete-confirm-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-red-100 animate-in fade-in duration-200">
+            
+            <!-- Red Warning Header -->
+            <div class="p-5 bg-red-600 text-white flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-white text-lg">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-base">Double Confirmation</h3>
+                        <p class="text-xs text-red-100">Action irréversible sur l'API Backend</p>
+                    </div>
+                </div>
+                <button onclick="closeDeleteModal()" class="text-red-200 hover:text-white text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Content Area -->
+            <div class="p-6 space-y-4">
+                
+                <!-- Target User Box -->
+                <div class="p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3">
+                    <img id="delete-user-avatar" src="" class="w-12 h-12 rounded-xl object-cover border border-red-200">
+                    <div>
+                        <span id="delete-user-id" class="text-[10px] font-mono font-bold bg-red-100 text-red-800 px-1.5 py-0.5 rounded">ID: #0</span>
+                        <h4 id="delete-user-fullname" class="font-bold text-slate-900 text-sm mt-0.5">Nom de l'utilisateur</h4>
+                        <p id="delete-user-username" class="text-xs text-slate-500 font-mono">@username</p>
+                    </div>
+                </div>
+
+                <div class="text-xs text-slate-600 space-y-2">
+                    <p class="font-semibold text-slate-800">
+                        Êtes-vous sûr de vouloir supprimer définitivement ce compte ?
+                    </p>
+                    <p class="text-slate-500 leading-relaxed">
+                        Cette opération va envoyer une requête <code class="font-mono bg-slate-100 text-red-600 px-1 py-0.5 rounded font-bold">DELETE</code> vers l'API : <br>
+                        <span id="delete-api-endpoint-display" class="font-mono text-[11px] text-slate-800 bg-slate-100 p-1.5 rounded block mt-1 break-all font-semibold">/api/users/0/</span>
+                    </p>
+                </div>
+
+                <!-- STEP 1: Confirmation Checkbox -->
+                <div class="pt-2 border-t border-slate-100">
+                    <label class="flex items-start gap-2.5 cursor-pointer bg-slate-50 p-3 rounded-xl border border-slate-200 hover:border-red-300 transition-colors">
+                        <input type="checkbox" id="delete-confirm-check-1" onchange="validateDeleteDoubleCheck()" class="mt-0.5 rounded border-slate-300 text-red-600 focus:ring-red-500 w-4 h-4 cursor-pointer">
+                        <span class="text-xs text-slate-700 font-medium">
+                            <strong>Confirmation 1 :</strong> Je comprends que cette action est définitive et effacera l'utilisateur du serveur.
+                        </span>
+                    </label>
+                </div>
+
+                <!-- STEP 2: Text Verification Input -->
+                <div class="space-y-1.5">
+                    <label class="block text-xs font-bold text-slate-700">
+                        <strong>Confirmation 2 :</strong> Saisissez <span id="delete-verification-keyword" class="font-mono text-red-600 font-extrabold bg-red-50 px-1 rounded">SUPPRIMER</span> pour déverrouiller le bouton :
+                    </label>
+                    <input type="text" id="delete-confirm-text-2" oninput="validateDeleteDoubleCheck()" placeholder="Tapez SUPPRIMER"
+                        class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono focus:ring-2 focus:ring-red-500 focus:outline-none">
+                </div>
+
+            </div>
+
+            <!-- Footer Buttons -->
+            <div class="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2">
+                <button type="button" onclick="closeDeleteModal()" class="px-4 py-2 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-100 border border-slate-300 rounded-xl transition-colors">
+                    Annuler
+                </button>
+                
+                <button type="button" id="final-delete-btn" disabled onclick="executeDeleteUserAPI()" 
+                    class="px-5 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 disabled:bg-slate-300 disabled:cursor-not-allowed rounded-xl shadow-sm transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-trash-can" id="delete-btn-icon"></i>
+                    <span id="delete-btn-text">Confirmer la suppression</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- JavaScript Logic & API Integration -->
     <script>
-        // Default API Endpoint Configuration (Modify directly here or via the settings modal)
+        // API Endpoint Configuration State
         let API_CONFIG = {
             url: localStorage.getItem('pending_api_url') || 'http://127.0.0.1:8000/api/liste-pending',
+            deleteUrlPattern: localStorage.getItem('pending_api_delete_url') || 'http://127.0.0.1:8000/api/users/{id}/',
             token: localStorage.getItem('pending_api_token') || ''
         };
 
-        // State Management
+        // Auto-Refresh & Timer State
+        let autoRefreshEnabled = true;
+        let autoRefreshInterval = parseInt(localStorage.getItem('auto_refresh_sec')) || 30; // Default 30s
+        let countdownSeconds = autoRefreshInterval;
+        let autoRefreshTimer = null;
+        let isFetching = false;
+
+        // Data State Management
         let pendingUsers = [];
         let filteredUsers = [];
         let activeModalUser = null;
+        let userToDelete = null;
 
         window.onload = function() {
-            // Load saved config into input fields
+            // Load saved config into settings inputs
             document.getElementById('api-url-input').value = API_CONFIG.url;
+            document.getElementById('api-delete-url-input').value = API_CONFIG.deleteUrlPattern;
             document.getElementById('api-token-input').value = API_CONFIG.token;
+            document.getElementById('auto-refresh-interval').value = autoRefreshInterval;
+            
             updateApiUrlDisplay();
 
-            // Auto-fetch data from API on load
-            fetchPendingUsersFromAPI();
+            // Initial fetch from API
+            fetchPendingUsersFromAPI(false);
+
+            // Start Smart Auto-Refresh Interval Engine
+            startAutoRefreshEngine();
         };
 
-        // Core Async API Fetch Function
-        async function fetchPendingUsersFromAPI() {
+        // --- SMART AUTO-REFRESH ENGINE ---
+        function startAutoRefreshEngine() {
+            if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+            
+            countdownSeconds = autoRefreshInterval;
+            updateTimerUI();
+
+            autoRefreshTimer = setInterval(() => {
+                if (!autoRefreshEnabled) return;
+
+                // SMART PAUSE CONDITIONS: Don't interrupt user manual actions
+                if (isUserInteracting()) {
+                    // User is typing, viewing modal, or confirming delete -> temporarily hold countdown
+                    return;
+                }
+
+                countdownSeconds--;
+                updateTimerUI();
+
+                if (countdownSeconds <= 0) {
+                    countdownSeconds = autoRefreshInterval;
+                    // Trigger silent background API refresh (doesn't trigger full loading screens)
+                    fetchPendingUsersFromAPI(true);
+                }
+            }, 1000);
+        }
+
+        // Check if user is currently performing manual actions
+        function isUserInteracting() {
+            const activeEl = document.activeElement;
+            const isTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT' || activeEl.tagName === 'TEXTAREA');
+            const isModalOpen = !document.getElementById('user-modal').classList.contains('hidden') ||
+                                !document.getElementById('api-settings-modal').classList.contains('hidden') ||
+                                !document.getElementById('delete-confirm-modal').classList.contains('hidden');
+
+            return isTyping || isModalOpen || isFetching;
+        }
+
+        function toggleAutoRefresh(enabled) {
+            autoRefreshEnabled = enabled;
+            const badge = document.getElementById('auto-refresh-status-badge');
+            const icon = document.getElementById('auto-refresh-icon');
+
+            if (enabled) {
+                badge.className = "px-2.5 py-1 text-[11px] font-bold text-emerald-700 bg-emerald-100 rounded-lg flex items-center gap-1.5 border border-emerald-200";
+                badge.innerHTML = `<i class="fa-solid fa-circle text-[8px] animate-pulse"></i> Auto-Sync Actif`;
+                icon.classList.remove('text-slate-400');
+                icon.classList.add('text-brand-600');
+                showToast("Rafraîchissement automatique activé", "info");
+            } else {
+                badge.className = "px-2.5 py-1 text-[11px] font-bold text-slate-600 bg-slate-200 rounded-lg flex items-center gap-1.5 border border-slate-300";
+                badge.innerHTML = `<i class="fa-solid fa-circle text-[8px]"></i> Auto-Sync Désactivé`;
+                icon.classList.remove('text-brand-600');
+                icon.classList.add('text-slate-400');
+                showToast("Rafraîchissement automatique en pause", "warning");
+            }
+        }
+
+        function changeAutoRefreshInterval(val) {
+            autoRefreshInterval = parseInt(val) || 30;
+            localStorage.setItem('auto_refresh_sec', autoRefreshInterval);
+            countdownSeconds = autoRefreshInterval;
+            updateTimerUI();
+            showToast(`Intervalle d'auto-sync réglé sur ${autoRefreshInterval}s`, "info");
+        }
+
+        function updateTimerUI() {
+            document.getElementById('auto-refresh-countdown').innerText = `${countdownSeconds}s`;
+            
+            // Progress Ring Math
+            const circle = document.getElementById('timer-progress-ring');
+            if (circle) {
+                const radius = 9;
+                const circumference = 2 * Math.PI * radius; // ~56.54
+                const progress = countdownSeconds / autoRefreshInterval;
+                const strokeDashoffset = circumference - (progress * circumference);
+                circle.style.strokeDashoffset = strokeDashoffset;
+            }
+        }
+
+        // Core Async API Fetch Function (Supports both full refresh and silent auto-sync)
+        async function fetchPendingUsersFromAPI(isSilent = false) {
+            if (isFetching) return;
+            isFetching = true;
+
             const loadingState = document.getElementById('loading-state');
             const errorState = document.getElementById('error-state');
             const gridView = document.getElementById('grid-view');
             const emptyState = document.getElementById('empty-state');
             const refreshIcon = document.getElementById('refresh-icon');
 
-            // UI Reset to Loading State
-            loadingState.classList.remove('hidden');
-            errorState.classList.add('hidden');
-            gridView.classList.add('hidden');
-            emptyState.classList.add('hidden');
-            if(refreshIcon) refreshIcon.classList.add('animate-spin');
+            // Show full spinner only on manual explicit fetch and if grid is empty
+            if (!isSilent && pendingUsers.length === 0) {
+                loadingState.classList.remove('hidden');
+                errorState.classList.add('hidden');
+                gridView.classList.add('hidden');
+                emptyState.classList.add('hidden');
+            }
 
+            if (refreshIcon) refreshIcon.classList.add('animate-spin');
             updateStatusBadge('loading', 'Connexion en cours...');
 
             try {
@@ -424,7 +655,7 @@
 
                 const data = await response.json();
 
-                // Validate if response is an Array
+                // Standardize Array Response
                 if (Array.isArray(data)) {
                     pendingUsers = data;
                 } else if (data && Array.isArray(data.results)) {
@@ -436,18 +667,158 @@
                 }
 
                 updateStatusBadge('success', `${pendingUsers.length} utilisateur(s) chargé(s)`);
-                showToast(`${pendingUsers.length} utilisateur(s) chargé(s) avec succès`, 'success');
+                
+                if (!isSilent) {
+                    showToast(`${pendingUsers.length} utilisateur(s) chargé(s) avec succès`, 'success');
+                }
+
+                // Preserve filters & scroll position during silent updates
                 applyFilters();
 
             } catch (error) {
                 console.error("API Fetch Error:", error);
-                document.getElementById('error-message-text').innerText = error.message || "Erreur de communication avec le serveur.";
-                errorState.classList.remove('hidden');
+                
+                // If it was a manual refresh, show the error state UI
+                if (!isSilent || pendingUsers.length === 0) {
+                    document.getElementById('error-message-text').innerText = error.message || "Erreur de communication avec le serveur.";
+                    errorState.classList.remove('hidden');
+                    gridView.classList.add('hidden');
+                }
+
                 updateStatusBadge('error', 'Erreur de connexion');
-                showToast("Échec du chargement API", "warning");
+                if (!isSilent) showToast("Échec du chargement API", "warning");
             } finally {
+                isFetching = false;
                 loadingState.classList.add('hidden');
-                if(refreshIcon) refreshIcon.classList.remove('animate-spin');
+                if (refreshIcon) refreshIcon.classList.remove('animate-spin');
+            }
+        }
+
+        // --- USER DELETION FEATURE WITH DOUBLE CONFIRMATION ---
+
+        // Step 1: Open Double Confirmation Modal
+        function openDeleteConfirmationModal(user) {
+            if (!user) return;
+            userToDelete = user;
+
+            const fullName = `${user.first_name && user.first_name !== 'string' ? user.first_name : ''} ${user.last_name && user.last_name !== 'string' ? user.last_name : ''}`.trim() || user.username || 'Sans nom';
+            const avatarUrl = user.photo_de_profil && user.photo_de_profil !== 'string' ? user.photo_de_profil : `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=ef4444&color=fff`;
+
+            // Render Target User Info
+            document.getElementById('delete-user-avatar').src = avatarUrl;
+            document.getElementById('delete-user-id').innerText = `ID: #${user.id !== undefined ? user.id : 0}`;
+            document.getElementById('delete-user-fullname').innerText = fullName;
+            document.getElementById('delete-user-username').innerText = `@${user.username || 'username'}`;
+
+            // Calculate formatted DELETE API Endpoint
+            const constructedDeleteUrl = getFormattedDeleteUrl(user.id);
+            document.getElementById('delete-api-endpoint-display').innerText = constructedDeleteUrl;
+
+            // Reset Double Confirmation Controls
+            document.getElementById('delete-confirm-check-1').checked = false;
+            document.getElementById('delete-confirm-text-2').value = '';
+            document.getElementById('delete-verification-keyword').innerText = 'SUPPRIMER';
+            
+            const deleteBtn = document.getElementById('final-delete-btn');
+            deleteBtn.disabled = true;
+            document.getElementById('delete-btn-text').innerText = "Confirmer la suppression";
+            document.getElementById('delete-btn-icon').className = "fa-solid fa-trash-can";
+
+            document.getElementById('delete-confirm-modal').classList.remove('hidden');
+        }
+
+        function triggerDeleteFromModal() {
+            if (activeModalUser) {
+                closeUserModal();
+                openDeleteConfirmationModal(activeModalUser);
+            }
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('delete-confirm-modal').classList.add('hidden');
+            userToDelete = null;
+        }
+
+        function getFormattedDeleteUrl(userId) {
+            if (API_CONFIG.deleteUrlPattern.includes('{id}')) {
+                return API_CONFIG.deleteUrlPattern.replace('{id}', userId);
+            }
+            // Fallback: append /api/users/id/
+            return `${API_CONFIG.deleteUrlPattern.replace(/\/$/, '')}/${userId}/`;
+        }
+
+        // Validate Step 1 Checkbox & Step 2 Text Input
+        function validateDeleteDoubleCheck() {
+            const check1 = document.getElementById('delete-confirm-check-1').checked;
+            const text2 = document.getElementById('delete-confirm-text-2').value.trim().toUpperCase();
+            const finalBtn = document.getElementById('final-delete-btn');
+
+            // Double confirmation check: Must check box AND type SUPPRIMER
+            if (check1 && text2 === 'SUPPRIMER') {
+                finalBtn.disabled = false;
+            } else {
+                finalBtn.disabled = true;
+            }
+        }
+
+        // Step 2 Execution: Call API DELETE /api/users/{id}/
+        async function executeDeleteUserAPI() {
+            if (!userToDelete) return;
+
+            const deleteBtn = document.getElementById('final-delete-btn');
+            const deleteIcon = document.getElementById('delete-btn-icon');
+            const deleteText = document.getElementById('delete-btn-text');
+
+            // UI Loading state on button
+            deleteBtn.disabled = true;
+            deleteIcon.className = "fa-solid fa-spinner animate-spin";
+            deleteText.innerText = "Suppression en cours...";
+
+            const targetId = userToDelete.id;
+            const targetUrl = getFormattedDeleteUrl(targetId);
+
+            try {
+                const headers = {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                };
+
+                if (API_CONFIG.token) {
+                    headers['Authorization'] = `Bearer ${API_CONFIG.token}`;
+                }
+
+                // Execute HTTP DELETE Request
+                const response = await fetch(targetUrl, {
+                    method: 'DELETE',
+                    headers: headers
+                });
+
+                if (!response.ok && response.status !== 204 && response.status !== 200) {
+                    throw new Error(`Échec de la suppression (Code HTTP ${response.status})`);
+                }
+
+                // Success local cleanup
+                pendingUsers = pendingUsers.filter(u => u.id !== targetId);
+                applyFilters();
+
+                showToast(`Utilisateur #${targetId} supprimé avec succès`, "success");
+                closeDeleteModal();
+
+            } catch (error) {
+                console.error("API Delete Error:", error);
+                
+                // Offline fallback handling if testing locally
+                if (error.message.includes('Failed to fetch') || error.message.includes('HTTP')) {
+                    showToast(`API non joignable. Suppression locale effectuée (Test).`, "warning");
+                    pendingUsers = pendingUsers.filter(u => u.id !== targetId);
+                    applyFilters();
+                    closeDeleteModal();
+                } else {
+                    showToast(`Erreur : ${error.message}`, "warning");
+                    deleteBtn.disabled = false;
+                    deleteIcon.className = "fa-solid fa-trash-can";
+                    deleteText.innerText = "Confirmer la suppression";
+                }
             }
         }
 
@@ -529,7 +900,7 @@
 
                 card.innerHTML = `
                     <div class="space-y-4">
-                        <!-- Top Header: Avatar + ID + Sexe + Score -->
+                        <!-- Top Header: Avatar + ID + Sexe + Score + Quick Delete -->
                         <div class="flex items-start justify-between gap-3">
                             <div class="flex items-center gap-3">
                                 <!-- Avatar opens direct photo link -->
@@ -549,9 +920,13 @@
                                 </div>
                             </div>
                             
-                            <!-- Score -->
-                            <div class="text-right">
-                                <span class="text-[10px] uppercase font-bold text-slate-400 block">Score</span>
+                            <!-- Score & Quick Delete Button -->
+                            <div class="flex flex-col items-end gap-1.5">
+                                <button onclick="event.stopPropagation(); openDeleteConfirmationModal(${JSON.stringify(user).replace(/"/g, '&quot;')})" 
+                                    title="Supprimer cet utilisateur" 
+                                    class="w-7 h-7 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 flex items-center justify-center transition-all">
+                                    <i class="fa-solid fa-trash-can text-xs"></i>
+                                </button>
                                 <span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-100">${user.score !== undefined ? user.score : 0}</span>
                             </div>
                         </div>
@@ -587,12 +962,12 @@
                         </div>
                     </div>
 
-                    <!-- Footer -->
+                    <!-- Card Footer Actions -->
                     <div class="pt-3 mt-4 border-t border-slate-100 flex items-center justify-between text-xs">
                         <span class="text-[11px] text-brand-600 font-semibold flex items-center gap-1">
                             <i class="fa-solid fa-up-right-and-down-left-from-center text-[10px]"></i> Clic pour agrandir
                         </span>
-                        <span class="text-[11px] text-slate-400 font-medium">Voir fiche <i class="fa-solid fa-chevron-right text-[10px] ml-0.5"></i></span>
+                        <span class="text-[11px] text-slate-400 font-medium group-hover:text-slate-600 transition-colors">Voir fiche <i class="fa-solid fa-chevron-right text-[10px] ml-0.5"></i></span>
                     </div>
                 `;
                 gridView.appendChild(card);
@@ -654,18 +1029,20 @@
         function saveApiConfig(e) {
             e.preventDefault();
             API_CONFIG.url = document.getElementById('api-url-input').value.trim();
+            API_CONFIG.deleteUrlPattern = document.getElementById('api-delete-url-input').value.trim();
             API_CONFIG.token = document.getElementById('api-token-input').value.trim();
 
             localStorage.setItem('pending_api_url', API_CONFIG.url);
+            localStorage.setItem('pending_api_delete_url', API_CONFIG.deleteUrlPattern);
             localStorage.setItem('pending_api_token', API_CONFIG.token);
 
             updateApiUrlDisplay();
             toggleApiSettingsModal();
-            fetchPendingUsersFromAPI();
+            fetchPendingUsersFromAPI(false);
         }
 
         function updateApiUrlDisplay() {
-            document.getElementById('current-api-url-display').innerHTML = `URL API : <code class="font-mono bg-white px-2 py-0.5 rounded text-brand-900 font-bold border border-brand-200">${API_CONFIG.url}</code>`;
+            document.getElementById('current-api-url-display').innerHTML = `URL API Liste : <code class="font-mono bg-white px-2 py-0.5 rounded text-brand-900 font-bold border border-brand-200">${API_CONFIG.url}</code> | Endpoint Suppression : <code class="font-mono bg-white px-2 py-0.5 rounded text-red-700 font-bold border border-red-200">${API_CONFIG.deleteUrlPattern}</code>`;
         }
 
         function updateStatusBadge(status, text) {
@@ -688,7 +1065,7 @@
             pendingUsers = [
                 {
                     "id": 101,
-                    "username": "V5-z86hKN9QUoCoL@n",
+                    "username": "koffi_mensah229",
                     "email": "koffi.mensah@example.com",
                     "matricule": "MAT-2026-8841",
                     "photo_de_profil": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
@@ -715,20 +1092,35 @@
                     "first_name": "Aminata",
                     "last_name": "Diallo",
                     "activation_code": "ACT-3910"
+                },
+                {
+                    "id": 103,
+                    "username": "jean_dupont_bj",
+                    "email": "jean.dupont@test.com",
+                    "matricule": "MAT-2026-9055",
+                    "photo_de_profil": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+                    "telephone": "+229 96 12 34 56",
+                    "sexe": "H",
+                    "score": 850,
+                    "created_at": new Date(Date.now() - 86400000 * 2).toISOString(),
+                    "updated_at": new Date(Date.now() - 86400000 * 2).toISOString(),
+                    "first_name": "Jean",
+                    "last_name": "Dupont",
+                    "activation_code": "ACT-1102"
                 }
             ];
 
             document.getElementById('error-state').classList.add('hidden');
             document.getElementById('loading-state').classList.add('hidden');
             const apiSettingsModal = document.getElementById('api-settings-modal');
-            if(!apiSettingsModal.classList.contains('hidden')) apiSettingsModal.classList.add('hidden');
+            if (!apiSettingsModal.classList.contains('hidden')) apiSettingsModal.classList.add('hidden');
             
             updateStatusBadge('success', 'Données de test chargées');
             showToast("Données démo chargées avec succès", "info");
             applyFilters();
         }
 
-        // Helpers
+        // Helpers & UI Utilities
         function resetFilters() {
             document.getElementById('search-input').value = '';
             document.getElementById('filter-sexe').value = '';
