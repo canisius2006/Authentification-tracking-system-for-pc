@@ -11,3 +11,8 @@ def hello():
     print("Bonjour")
 
     return "OK"
+
+
+@shared_task
+def add(x,y):
+    return x+y
