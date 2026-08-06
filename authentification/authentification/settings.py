@@ -24,7 +24,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv('SECRET_KEY')
+SECRET_KEY = 'django-insecure-#d1f=b75g)=kmmh5#x^uc5nh9z#n27s^^y##k7=4c64^0c5j9q'
+
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -86,18 +87,18 @@ WSGI_APPLICATION = 'authentification.wsgi.application'
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
 DATABASES = {
-    'sqlite': {
+    'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
-    },
-    'default':{
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.getenv('DB_NAME'),
-        'USER':os.getenv('DB_USER'),
-        'PASSWORD':os.getenv('DB_PASSWORD'),
-        'PORT':os.getenv('DB_PORT'),
-        'HOST':socket.gethostbyname('CIA-008')
-    }
+     },
+    # 'default':{
+    #     'ENGINE': 'django.db.backends.mysql',
+    #     'NAME': os.getenv('DB_NAME'),
+    #     'USER':os.getenv('DB_USER'),
+    #     'PASSWORD':os.getenv('DB_PASSWORD'),
+    #     'PORT':os.getenv('DB_PORT'),
+    #     'HOST':socket.gethostbyname('CIA-008')
+    # }
 }
 
 
@@ -190,3 +191,5 @@ MEDIA_URL = '/media/'
 
 MEDIA_ROOT = BASE_DIR/'media/'
 
+ELERY_BROKER_URL = "redis://localhost:6379"
+CELERY_RESULT_BACKEND = "redis://localhost:6379"
