@@ -1,17 +1,13 @@
+from celery import Celery
 import os
 
-from celery import Celery
+os.environ.setdefault('DJANGO_SETTINGS_MODULE','authentification.settings')
 
-os.environ.setdefault(
-    "DJANGO_SETTINGS_MODULE",
-    "authentification.settings"
-)
-
-app = Celery("authentification")
-
-app.config_from_object(
-    "django.conf:settings",
-    namespace="CELERY"
-)
+app = Celery('authentification')
 
 app.autodiscover_tasks()
+app.config_from_object('django.conf:settings',namespace='CELERY')
+@app.task(bind=True,ignore_result=True)
+
+def debug_task(self):
+    print(f"Request: {self.request!r}")

@@ -18,7 +18,7 @@ from drf_spectacular.utils import extend_schema, OpenApiResponse
 from drf_spectacular.utils import extend_schema
 from rest_framework import status 
 from rest_framework_simplejwt.tokens import RefreshToken 
-from .tasks import hello
+from .tasks import add
 
 # Create your views here.
 
@@ -173,10 +173,13 @@ def dash(request):
 
 
 
-def ma_vue(request):
+def test_task(request):
+    result = add.delay(2,3)
+    return render(request,'task.html',{'result':result})
 
-    hello.delay()
 
-    return JsonResponse({
-        "message": "Tâche lancée"
-    })
+def test_task_result(request,task_id):
+    result = add.AsyncResult(task_id)
+    if result.ready():
+        return render(request,'voir.html',{'results':result.result})
+    return render(request,'voir.html',{'results':"Result not ready yet"})
