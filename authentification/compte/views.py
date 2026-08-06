@@ -176,3 +176,10 @@ def dash(request):
 def test_task(request):
     result = add.delay(2,3)
     return render(request,'task.html',{'result':result})
+
+
+def test_task_result(request,task_id):
+    result = add.AsyncResult(task_id)
+    if result.ready():
+        return render(request,'voir.html',{'results':result.result})
+    return render(request,'voir.html',{'results':"Result not ready yet"})

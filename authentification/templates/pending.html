@@ -69,7 +69,7 @@
                             <h1 class="text-lg font-bold text-slate-900 leading-tight">Administration Pending Users</h1>
                             <p class="text-xs text-amber-600 font-medium flex items-center gap-1.5">
                                 <span id="api-status-dot" class="w-2 h-2 rounded-full bg-slate-300"></span>
-                                <span id="api-status-text">Prêt pour connexion API</span>
+                                <span id="api-status-text">Non connecté</span>
                             </p>
                         </div>
                     </div>
@@ -77,7 +77,7 @@
 
                 <!-- Right Action Header & Auto-Refresh Bar -->
                 <div class="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-end flex-wrap sm:flex-nowrap">
-                    
+
                     <!-- Auto-Refresh Toggle & Timer Box -->
                     <div class="flex items-center gap-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200">
                         <div class="relative w-6 h-6 flex items-center justify-center">
@@ -97,12 +97,22 @@
                         </div>
 
                         <select id="auto-refresh-interval" onchange="changeAutoRefreshInterval(this.value)" class="bg-white text-slate-700 text-[11px] font-bold rounded-lg border border-slate-200 px-1.5 py-1 focus:ring-1 focus:ring-brand-500 outline-none cursor-pointer">
+                            <option value="5" selected>5s</option>
                             <option value="10">10s</option>
-                            <option value="30" selected>30s</option>
+                            <option value="30">30s</option>
                             <option value="60">1m</option>
                             <option value="120">2m</option>
                         </select>
-                        <span id="auto-refresh-countdown" class="text-[10px] font-mono font-bold text-brand-700 bg-brand-100 px-1.5 py-0.5 rounded-md min-w-[28px] text-center">30s</span>
+                        <span id="auto-refresh-countdown" class="text-[10px] font-mono font-bold text-brand-700 bg-brand-100 px-1.5 py-0.5 rounded-md min-w-[28px] text-center">5s</span>
+                    </div>
+
+                    <!-- Session / Logout -->
+                    <div id="session-badge" class="hidden px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-100 rounded-xl border border-slate-200 items-center gap-2">
+                        <i class="fa-solid fa-circle-user text-brand-600"></i>
+                        <span id="session-username">--</span>
+                        <button onclick="logoutUser()" title="Se déconnecter" class="text-slate-400 hover:text-red-600 ml-1">
+                            <i class="fa-solid fa-right-from-bracket"></i>
+                        </button>
                     </div>
 
                     <!-- Config API Button -->
@@ -140,7 +150,7 @@
                     <i class="fa-solid fa-circle text-[8px] animate-pulse"></i> Auto-Sync Actif
                 </span>
                 <button onclick="toggleApiSettingsModal()" class="px-3 py-1.5 text-xs font-bold text-brand-700 bg-white hover:bg-brand-100 rounded-xl border border-brand-300 transition-colors">
-                    Changer les URL / Token
+                    Changer les URL
                 </button>
             </div>
         </div>
@@ -175,14 +185,14 @@
         <!-- Filters & Search Bar -->
         <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
             <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                
+
                 <!-- Search Input -->
                 <div class="relative flex-1">
                     <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                         <i class="fa-solid fa-magnifying-glass"></i>
                     </div>
-                    <input type="text" id="search-input" oninput="applyFilters()" 
-                        placeholder="Rechercher par Nom, Username, Email, Matricule, Code, Téléphone, ID..." 
+                    <input type="text" id="search-input" oninput="applyFilters()"
+                        placeholder="Rechercher par Nom, Username, Email, Matricule, Code, Téléphone, ID..."
                         class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition-all">
                 </div>
 
@@ -252,6 +262,44 @@
 
     </main>
 
+    <!-- Modal: LOGIN (obtention du token JWT) -->
+    <div id="login-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[60] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden border border-slate-100">
+            <div class="p-6 bg-slate-900 text-white text-center">
+                <div class="w-12 h-12 bg-brand-600 rounded-2xl flex items-center justify-center text-white mx-auto mb-3">
+                    <i class="fa-solid fa-lock"></i>
+                </div>
+                <h3 class="font-bold text-base">Connexion requise</h3>
+                <p class="text-xs text-slate-400 mt-1">Identifiez-vous pour accéder au tableau de bord</p>
+            </div>
+
+            <form onsubmit="handleLoginSubmit(event)" class="p-6 space-y-4">
+                <div id="login-error-box" class="hidden bg-red-50 border border-red-200 text-red-700 text-xs font-medium rounded-xl p-3"></div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Nom d'utilisateur</label>
+                    <input type="text" id="login-username-input" required autocomplete="username"
+                        class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Mot de passe</label>
+                    <input type="password" id="login-password-input" required autocomplete="current-password"
+                        class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                </div>
+
+                <button type="submit" id="login-submit-btn" class="w-full px-4 py-2.5 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-xl shadow-sm flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-right-to-bracket" id="login-submit-icon"></i>
+                    <span id="login-submit-text">Se connecter</span>
+                </button>
+
+                <button type="button" onclick="toggleApiSettingsModal()" class="w-full text-center text-[11px] text-slate-400 hover:text-brand-600 font-medium">
+                    Configurer l'URL du serveur d'authentification
+                </button>
+            </form>
+        </div>
+    </div>
+
     <!-- Modal: API Settings Configuration -->
     <div id="api-settings-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-100">
@@ -262,7 +310,7 @@
                     </div>
                     <div>
                         <h3 class="font-bold text-base">Configuration API</h3>
-                        <p class="text-xs text-slate-400">Définissez les endpoints API et jetons de sécurité</p>
+                        <p class="text-xs text-slate-400">Définissez les endpoints API et le serveur d'authentification</p>
                     </div>
                 </div>
                 <button onclick="toggleApiSettingsModal()" class="text-slate-400 hover:text-white text-lg">
@@ -272,25 +320,27 @@
 
             <form onsubmit="saveApiConfig(event)" class="p-6 space-y-4">
                 <div>
+                    <label class="block text-xs font-bold uppercase text-slate-500 mb-1">URL de base du serveur (Authentification)</label>
+                    <input type="url" id="auth-base-url-input" required placeholder="http://127.0.0.1:8000"
+                        class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                    <p class="text-[11px] text-slate-400 mt-1">Utilisée pour <code class="font-mono">/api/token/</code> (login) et <code class="font-mono">/api/token/refresh/</code> (renouvellement automatique).</p>
+                </div>
+
+                <div>
                     <label class="block text-xs font-bold uppercase text-slate-500 mb-1">URL Endpoint Liste Pending</label>
-                    <input type="url" id="api-url-input" required placeholder="http://127.0.0.1:8000/api/liste-pending" 
+                    <input type="url" id="api-url-input" required placeholder="http://127.0.0.1:8000/api/liste-pending"
                         class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono focus:ring-2 focus:ring-brand-500 focus:outline-none">
                     <p class="text-[11px] text-slate-400 mt-1">L'API GET doit retourner un tableau d'objets JSON d'utilisateurs.</p>
                 </div>
 
                 <div>
                     <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Modèle d'URL Endpoint Suppression (DELETE)</label>
-                    <input type="text" id="api-delete-url-input" required placeholder="http://127.0.0.1:8000/api/users/{id}/" 
+                    <input type="text" id="api-delete-url-input" required placeholder="http://127.0.0.1:8000/api/users/{id}/"
                         class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono focus:ring-2 focus:ring-brand-500 focus:outline-none">
                     <p class="text-[11px] text-slate-400 mt-1">Conservez le tag <code class="font-bold font-mono">{id}</code> qui sera remplacé dynamiquement lors de la requête DELETE.</p>
                 </div>
 
-                <div>
-                    <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Jeton d'authentification (Bearer Token - Optionnel)</label>
-                    <input type="text" id="api-token-input" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." 
-                        class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono focus:ring-2 focus:ring-brand-500 focus:outline-none">
-                    <p class="text-[11px] text-slate-400 mt-1">Envoyé dans l'en-tête `Authorization: Bearer TOKEN` pour GET & DELETE.</p>
-                </div>
+                <p class="text-[11px] text-slate-400">L'authentification se fait désormais via la connexion (login) — le token d'accès est géré et renouvelé automatiquement.</p>
 
                 <div class="pt-4 border-t border-slate-100 flex items-center justify-between">
                     <button type="button" onclick="loadMockDataForTesting()" class="text-xs text-brand-600 hover:underline font-semibold">
@@ -301,7 +351,7 @@
                             Annuler
                         </button>
                         <button type="submit" class="px-4 py-2 text-xs font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-xl shadow-sm">
-                            Enregistrer & Tester
+                            Enregistrer
                         </button>
                     </div>
                 </div>
@@ -312,7 +362,7 @@
     <!-- Modal: User Expanded Detail View -->
     <div id="user-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4" onclick="handleModalBackdropClick(event)">
         <div class="bg-white rounded-2xl shadow-2xl max-w-xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-slate-100">
-            
+
             <!-- Modal Header -->
             <div class="p-6 bg-slate-900 text-white flex items-start justify-between relative">
                 <div class="flex items-center gap-4">
@@ -339,7 +389,7 @@
 
             <!-- Modal Body - Priority API Fields -->
             <div class="p-6 overflow-y-auto custom-scrollbar space-y-5 bg-slate-50/50">
-                
+
                 <!-- Code & Score Block -->
                 <div class="grid grid-cols-2 gap-3">
                     <div class="p-3.5 bg-amber-50 border border-amber-200 rounded-xl space-y-1">
@@ -415,18 +465,18 @@
         </div>
     </div>
 
-    <!-- Modal: DOUBLE CONFIRMATION DELETE USER -->
+    <!-- Modal: CONFIRMATION DE SUPPRESSION (simple) -->
     <div id="delete-confirm-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-red-100 animate-in fade-in duration-200">
-            
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-red-100">
+
             <!-- Red Warning Header -->
             <div class="p-5 bg-red-600 text-white flex items-center justify-between">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-white text-lg">
-                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        <i class="fa-solid fa-trash-can"></i>
                     </div>
                     <div>
-                        <h3 class="font-bold text-base">Double Confirmation</h3>
+                        <h3 class="font-bold text-base">Confirmer la suppression</h3>
                         <p class="text-xs text-red-100">Action irréversible sur l'API Backend</p>
                     </div>
                 </div>
@@ -437,7 +487,7 @@
 
             <!-- Content Area -->
             <div class="p-6 space-y-4">
-                
+
                 <!-- Target User Box -->
                 <div class="p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3">
                     <img id="delete-user-avatar" src="" class="w-12 h-12 rounded-xl object-cover border border-red-200">
@@ -448,35 +498,9 @@
                     </div>
                 </div>
 
-                <div class="text-xs text-slate-600 space-y-2">
-                    <p class="font-semibold text-slate-800">
-                        Êtes-vous sûr de vouloir supprimer définitivement ce compte ?
-                    </p>
-                    <p class="text-slate-500 leading-relaxed">
-                        Cette opération va envoyer une requête <code class="font-mono bg-slate-100 text-red-600 px-1 py-0.5 rounded font-bold">DELETE</code> vers l'API : <br>
-                        <span id="delete-api-endpoint-display" class="font-mono text-[11px] text-slate-800 bg-slate-100 p-1.5 rounded block mt-1 break-all font-semibold">/api/users/0/</span>
-                    </p>
-                </div>
-
-                <!-- STEP 1: Confirmation Checkbox -->
-                <div class="pt-2 border-t border-slate-100">
-                    <label class="flex items-start gap-2.5 cursor-pointer bg-slate-50 p-3 rounded-xl border border-slate-200 hover:border-red-300 transition-colors">
-                        <input type="checkbox" id="delete-confirm-check-1" onchange="validateDeleteDoubleCheck()" class="mt-0.5 rounded border-slate-300 text-red-600 focus:ring-red-500 w-4 h-4 cursor-pointer">
-                        <span class="text-xs text-slate-700 font-medium">
-                            <strong>Confirmation 1 :</strong> Je comprends que cette action est définitive et effacera l'utilisateur du serveur.
-                        </span>
-                    </label>
-                </div>
-
-                <!-- STEP 2: Text Verification Input -->
-                <div class="space-y-1.5">
-                    <label class="block text-xs font-bold text-slate-700">
-                        <strong>Confirmation 2 :</strong> Saisissez <span id="delete-verification-keyword" class="font-mono text-red-600 font-extrabold bg-red-50 px-1 rounded">SUPPRIMER</span> pour déverrouiller le bouton :
-                    </label>
-                    <input type="text" id="delete-confirm-text-2" oninput="validateDeleteDoubleCheck()" placeholder="Tapez SUPPRIMER"
-                        class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono focus:ring-2 focus:ring-red-500 focus:outline-none">
-                </div>
-
+                <p class="text-xs text-slate-600 font-semibold">
+                    Êtes-vous sûr de vouloir supprimer définitivement ce compte ? Cette action ne peut pas être annulée.
+                </p>
             </div>
 
             <!-- Footer Buttons -->
@@ -484,11 +508,11 @@
                 <button type="button" onclick="closeDeleteModal()" class="px-4 py-2 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-100 border border-slate-300 rounded-xl transition-colors">
                     Annuler
                 </button>
-                
-                <button type="button" id="final-delete-btn" disabled onclick="executeDeleteUserAPI()" 
+
+                <button type="button" id="final-delete-btn" onclick="executeDeleteUserAPI()"
                     class="px-5 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 disabled:bg-slate-300 disabled:cursor-not-allowed rounded-xl shadow-sm transition-all flex items-center gap-2">
                     <i class="fa-solid fa-trash-can" id="delete-btn-icon"></i>
-                    <span id="delete-btn-text">Confirmer la suppression</span>
+                    <span id="delete-btn-text">Supprimer</span>
                 </button>
             </div>
         </div>
@@ -496,16 +520,25 @@
 
     <!-- JavaScript Logic & API Integration -->
     <script>
-        // API Endpoint Configuration State
+        // API Endpoint Configuration State (liste + suppression)
         let API_CONFIG = {
             url: localStorage.getItem('pending_api_url') || 'http://127.0.0.1:8000/api/liste-pending',
-            deleteUrlPattern: localStorage.getItem('pending_api_delete_url') || 'http://127.0.0.1:8000/api/users/{id}/',
-            token: localStorage.getItem('pending_api_token') || ''
+            deleteUrlPattern: localStorage.getItem('pending_api_delete_url') || 'http://127.0.0.1:8000/api/users/{id}/'
         };
+
+        // Authentication State (JWT access + refresh tokens)
+        let AUTH_CONFIG = {
+            baseUrl: localStorage.getItem('auth_base_url') || 'http://127.0.0.1:8000',
+            accessToken: localStorage.getItem('access_token') || '',
+            refreshToken: localStorage.getItem('refresh_token') || '',
+            username: localStorage.getItem('auth_username') || ''
+        };
+        let tokenRefreshTimer = null;
+        const REFRESH_MARGIN_MS = 30000; // renouvelle 30s avant l'expiration du token
 
         // Auto-Refresh & Timer State
         let autoRefreshEnabled = true;
-        let autoRefreshInterval = parseInt(localStorage.getItem('auto_refresh_sec')) || 30; // Default 30s
+        let autoRefreshInterval = parseInt(localStorage.getItem('auto_refresh_sec')) || 5; // Default 5s
         let countdownSeconds = autoRefreshInterval;
         let autoRefreshTimer = null;
         let isFetching = false;
@@ -518,29 +551,216 @@
 
         window.onload = function() {
             // Load saved config into settings inputs
+            document.getElementById('auth-base-url-input').value = AUTH_CONFIG.baseUrl;
             document.getElementById('api-url-input').value = API_CONFIG.url;
             document.getElementById('api-delete-url-input').value = API_CONFIG.deleteUrlPattern;
-            document.getElementById('api-token-input').value = API_CONFIG.token;
             document.getElementById('auto-refresh-interval').value = autoRefreshInterval;
-            
+
             updateApiUrlDisplay();
-
-            // Initial fetch from API
-            fetchPendingUsersFromAPI(false);
-
-            // Start Smart Auto-Refresh Interval Engine
-            startAutoRefreshEngine();
+            initSession();
         };
 
-        // --- SMART AUTO-REFRESH ENGINE ---
+        // --- AUTHENTIFICATION (JWT via /api/token/ et /api/token/refresh/) ---
+
+        // Point d'entrée au chargement : tente de restaurer une session existante,
+        // sinon affiche le formulaire de connexion.
+        async function initSession() {
+            if (AUTH_CONFIG.accessToken && !isTokenExpired(AUTH_CONFIG.accessToken)) {
+                onAuthenticated();
+                return;
+            }
+            if (AUTH_CONFIG.refreshToken) {
+                const ok = await refreshAccessToken();
+                if (ok) {
+                    onAuthenticated();
+                    return;
+                }
+            }
+            showLoginModal();
+        }
+
+        function onAuthenticated() {
+            hideLoginModal();
+            updateSessionBadge();
+            scheduleTokenRefresh(AUTH_CONFIG.accessToken);
+            fetchPendingUsersFromAPI(false);
+            startAutoRefreshEngine();
+        }
+
+        function showLoginModal(errorMessage) {
+            document.getElementById('login-modal').classList.remove('hidden');
+            const errBox = document.getElementById('login-error-box');
+            if (errorMessage) {
+                errBox.innerText = errorMessage;
+                errBox.classList.remove('hidden');
+            } else {
+                errBox.classList.add('hidden');
+            }
+            updateStatusBadge('error', 'Non connecté');
+        }
+
+        function hideLoginModal() {
+            document.getElementById('login-modal').classList.add('hidden');
+        }
+
+        async function handleLoginSubmit(e) {
+            e.preventDefault();
+            const username = document.getElementById('login-username-input').value.trim();
+            const password = document.getElementById('login-password-input').value;
+
+            const btn = document.getElementById('login-submit-btn');
+            const icon = document.getElementById('login-submit-icon');
+            const text = document.getElementById('login-submit-text');
+            btn.disabled = true;
+            icon.className = "fa-solid fa-spinner animate-spin";
+            text.innerText = "Connexion en cours...";
+
+            try {
+                const resp = await fetch(`${AUTH_CONFIG.baseUrl.replace(/\/$/, '')}/api/token/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                if (!resp.ok) {
+                    if (resp.status === 401 || resp.status === 400) {
+                        throw new Error("Nom d'utilisateur ou mot de passe incorrect.");
+                    }
+                    throw new Error(`Erreur serveur (HTTP ${resp.status})`);
+                }
+
+                const data = await resp.json();
+                if (!data.access || !data.refresh) {
+                    throw new Error("Réponse inattendue du serveur d'authentification.");
+                }
+
+                setTokens(data.access, data.refresh);
+                AUTH_CONFIG.username = username;
+                localStorage.setItem('auth_username', username);
+
+                document.getElementById('login-password-input').value = '';
+                showToast("Connexion réussie", "success");
+                onAuthenticated();
+
+            } catch (error) {
+                console.error("Login error:", error);
+                showLoginModal(error.message || "Impossible de se connecter au serveur.");
+            } finally {
+                btn.disabled = false;
+                icon.className = "fa-solid fa-right-to-bracket";
+                text.innerText = "Se connecter";
+            }
+        }
+
+        function setTokens(access, refresh) {
+            AUTH_CONFIG.accessToken = access;
+            localStorage.setItem('access_token', access);
+            if (refresh) {
+                AUTH_CONFIG.refreshToken = refresh;
+                localStorage.setItem('refresh_token', refresh);
+            }
+        }
+
+        function logoutUser() {
+            AUTH_CONFIG.accessToken = '';
+            AUTH_CONFIG.refreshToken = '';
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            if (tokenRefreshTimer) clearTimeout(tokenRefreshTimer);
+            if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+
+            pendingUsers = [];
+            filteredUsers = [];
+            renderGridCards();
+            updateStats();
+
+            document.getElementById('session-badge').classList.add('hidden');
+            document.getElementById('session-badge').classList.remove('flex');
+            showLoginModal();
+        }
+
+        function updateSessionBadge() {
+            const badge = document.getElementById('session-badge');
+            document.getElementById('session-username').innerText = AUTH_CONFIG.username || 'Utilisateur';
+            badge.classList.remove('hidden');
+            badge.classList.add('flex');
+        }
+
+        // Décode le payload d'un JWT (sans vérification de signature - usage client uniquement)
+        function decodeJwtPayload(token) {
+            try {
+                const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+                return JSON.parse(decodeURIComponent(escape(atob(base64))));
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function isTokenExpired(token) {
+            const payload = decodeJwtPayload(token);
+            if (!payload || !payload.exp) return true;
+            return (Date.now() / 1000) >= payload.exp;
+        }
+
+        // Programme le renouvellement automatique du token d'accès, un peu avant son expiration
+        function scheduleTokenRefresh(accessToken) {
+            if (tokenRefreshTimer) clearTimeout(tokenRefreshTimer);
+            const payload = decodeJwtPayload(accessToken);
+            if (!payload || !payload.exp) return;
+
+            const msUntilExpiry = (payload.exp * 1000) - Date.now();
+            const msUntilRefresh = Math.max(msUntilExpiry - REFRESH_MARGIN_MS, 5000);
+
+            tokenRefreshTimer = setTimeout(async () => {
+                await refreshAccessToken();
+            }, msUntilRefresh);
+        }
+
+        // Appelle /api/token/refresh/ avec le refresh token stocké
+        async function refreshAccessToken() {
+            if (!AUTH_CONFIG.refreshToken) return false;
+
+            try {
+                const resp = await fetch(`${AUTH_CONFIG.baseUrl.replace(/\/$/, '')}/api/token/refresh/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ refresh: AUTH_CONFIG.refreshToken })
+                });
+
+                if (!resp.ok) throw new Error(`Refresh HTTP ${resp.status}`);
+
+                const data = await resp.json();
+                if (!data.access) throw new Error("Pas de token d'accès retourné.");
+
+                // Si la rotation des refresh tokens est activée côté serveur, un nouveau refresh est renvoyé
+                setTokens(data.access, data.refresh || null);
+                scheduleTokenRefresh(data.access);
+                return true;
+
+            } catch (error) {
+                console.warn("Impossible de renouveler le token :", error.message);
+                logoutUser();
+                showLoginModal("Votre session a expiré, veuillez vous reconnecter.");
+                return false;
+            }
+        }
+
+        function getAuthHeaders() {
+            const headers = { 'Accept': 'application/json', 'Content-Type': 'application/json' };
+            if (AUTH_CONFIG.accessToken) headers['Authorization'] = `Bearer ${AUTH_CONFIG.accessToken}`;
+            return headers;
+        }
+
+        // --- SMART AUTO-REFRESH ENGINE (données liste-pending) ---
         function startAutoRefreshEngine() {
             if (autoRefreshTimer) clearInterval(autoRefreshTimer);
-            
+
             countdownSeconds = autoRefreshInterval;
             updateTimerUI();
 
             autoRefreshTimer = setInterval(() => {
                 if (!autoRefreshEnabled) return;
+                if (!AUTH_CONFIG.accessToken) return;
 
                 // SMART PAUSE CONDITIONS: Don't interrupt user manual actions
                 if (isUserInteracting()) {
@@ -565,7 +785,8 @@
             const isTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT' || activeEl.tagName === 'TEXTAREA');
             const isModalOpen = !document.getElementById('user-modal').classList.contains('hidden') ||
                                 !document.getElementById('api-settings-modal').classList.contains('hidden') ||
-                                !document.getElementById('delete-confirm-modal').classList.contains('hidden');
+                                !document.getElementById('delete-confirm-modal').classList.contains('hidden') ||
+                                !document.getElementById('login-modal').classList.contains('hidden');
 
             return isTyping || isModalOpen || isFetching;
         }
@@ -591,7 +812,7 @@
         }
 
         function changeAutoRefreshInterval(val) {
-            autoRefreshInterval = parseInt(val) || 30;
+            autoRefreshInterval = parseInt(val) || 5;
             localStorage.setItem('auto_refresh_sec', autoRefreshInterval);
             countdownSeconds = autoRefreshInterval;
             updateTimerUI();
@@ -600,7 +821,7 @@
 
         function updateTimerUI() {
             document.getElementById('auto-refresh-countdown').innerText = `${countdownSeconds}s`;
-            
+
             // Progress Ring Math
             const circle = document.getElementById('timer-progress-ring');
             if (circle) {
@@ -613,8 +834,9 @@
         }
 
         // Core Async API Fetch Function (Supports both full refresh and silent auto-sync)
-        async function fetchPendingUsersFromAPI(isSilent = false) {
+        async function fetchPendingUsersFromAPI(isSilent = false, isRetryAfterRefresh = false) {
             if (isFetching) return;
+            if (!AUTH_CONFIG.accessToken) { showLoginModal(); return; }
             isFetching = true;
 
             const loadingState = document.getElementById('loading-state');
@@ -635,19 +857,20 @@
             updateStatusBadge('loading', 'Connexion en cours...');
 
             try {
-                const headers = {
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
-                };
-
-                if (API_CONFIG.token) {
-                    headers['Authorization'] = `Bearer ${API_CONFIG.token}`;
-                }
-
                 const response = await fetch(API_CONFIG.url, {
                     method: 'GET',
-                    headers: headers
+                    headers: getAuthHeaders()
                 });
+
+                // Token expiré / invalide -> tente un renouvellement puis rejoue la requête une fois
+                if (response.status === 401 && !isRetryAfterRefresh) {
+                    isFetching = false;
+                    const refreshed = await refreshAccessToken();
+                    if (refreshed) {
+                        return fetchPendingUsersFromAPI(isSilent, true);
+                    }
+                    return;
+                }
 
                 if (!response.ok) {
                     throw new Error(`Erreur HTTP ${response.status} : ${response.statusText}`);
@@ -667,7 +890,7 @@
                 }
 
                 updateStatusBadge('success', `${pendingUsers.length} utilisateur(s) chargé(s)`);
-                
+
                 if (!isSilent) {
                     showToast(`${pendingUsers.length} utilisateur(s) chargé(s) avec succès`, 'success');
                 }
@@ -677,7 +900,7 @@
 
             } catch (error) {
                 console.error("API Fetch Error:", error);
-                
+
                 // If it was a manual refresh, show the error state UI
                 if (!isSilent || pendingUsers.length === 0) {
                     document.getElementById('error-message-text').innerText = error.message || "Erreur de communication avec le serveur.";
@@ -694,9 +917,9 @@
             }
         }
 
-        // --- USER DELETION FEATURE WITH DOUBLE CONFIRMATION ---
+        // --- USER DELETION FEATURE (confirmation simple) ---
 
-        // Step 1: Open Double Confirmation Modal
+        // Ouvre la modale de confirmation simple
         function openDeleteConfirmationModal(user) {
             if (!user) return;
             userToDelete = user;
@@ -710,18 +933,9 @@
             document.getElementById('delete-user-fullname').innerText = fullName;
             document.getElementById('delete-user-username').innerText = `@${user.username || 'username'}`;
 
-            // Calculate formatted DELETE API Endpoint
-            const constructedDeleteUrl = getFormattedDeleteUrl(user.id);
-            document.getElementById('delete-api-endpoint-display').innerText = constructedDeleteUrl;
-
-            // Reset Double Confirmation Controls
-            document.getElementById('delete-confirm-check-1').checked = false;
-            document.getElementById('delete-confirm-text-2').value = '';
-            document.getElementById('delete-verification-keyword').innerText = 'SUPPRIMER';
-            
             const deleteBtn = document.getElementById('final-delete-btn');
-            deleteBtn.disabled = true;
-            document.getElementById('delete-btn-text').innerText = "Confirmer la suppression";
+            deleteBtn.disabled = false;
+            document.getElementById('delete-btn-text').innerText = "Supprimer";
             document.getElementById('delete-btn-icon').className = "fa-solid fa-trash-can";
 
             document.getElementById('delete-confirm-modal').classList.remove('hidden');
@@ -747,23 +961,10 @@
             return `${API_CONFIG.deleteUrlPattern.replace(/\/$/, '')}/${userId}/`;
         }
 
-        // Validate Step 1 Checkbox & Step 2 Text Input
-        function validateDeleteDoubleCheck() {
-            const check1 = document.getElementById('delete-confirm-check-1').checked;
-            const text2 = document.getElementById('delete-confirm-text-2').value.trim().toUpperCase();
-            const finalBtn = document.getElementById('final-delete-btn');
-
-            // Double confirmation check: Must check box AND type SUPPRIMER
-            if (check1 && text2 === 'SUPPRIMER') {
-                finalBtn.disabled = false;
-            } else {
-                finalBtn.disabled = true;
-            }
-        }
-
-        // Step 2 Execution: Call API DELETE /api/users/{id}/
-        async function executeDeleteUserAPI() {
+        // Exécution : appelle l'API DELETE /api/users/{id}/ après confirmation simple
+        async function executeDeleteUserAPI(isRetryAfterRefresh = false) {
             if (!userToDelete) return;
+            if (!AUTH_CONFIG.accessToken) { showLoginModal(); return; }
 
             const deleteBtn = document.getElementById('final-delete-btn');
             const deleteIcon = document.getElementById('delete-btn-icon');
@@ -778,20 +979,18 @@
             const targetUrl = getFormattedDeleteUrl(targetId);
 
             try {
-                const headers = {
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
-                };
-
-                if (API_CONFIG.token) {
-                    headers['Authorization'] = `Bearer ${API_CONFIG.token}`;
-                }
-
-                // Execute HTTP DELETE Request
                 const response = await fetch(targetUrl, {
                     method: 'DELETE',
-                    headers: headers
+                    headers: getAuthHeaders()
                 });
+
+                if (response.status === 401 && !isRetryAfterRefresh) {
+                    const refreshed = await refreshAccessToken();
+                    if (refreshed) {
+                        return executeDeleteUserAPI(true);
+                    }
+                    return;
+                }
 
                 if (!response.ok && response.status !== 204 && response.status !== 200) {
                     throw new Error(`Échec de la suppression (Code HTTP ${response.status})`);
@@ -806,7 +1005,7 @@
 
             } catch (error) {
                 console.error("API Delete Error:", error);
-                
+
                 // Offline fallback handling if testing locally
                 if (error.message.includes('Failed to fetch') || error.message.includes('HTTP')) {
                     showToast(`API non joignable. Suppression locale effectuée (Test).`, "warning");
@@ -817,7 +1016,7 @@
                     showToast(`Erreur : ${error.message}`, "warning");
                     deleteBtn.disabled = false;
                     deleteIcon.className = "fa-solid fa-trash-can";
-                    deleteText.innerText = "Confirmer la suppression";
+                    deleteText.innerText = "Supprimer";
                 }
             }
         }
@@ -830,8 +1029,8 @@
 
             filteredUsers = pendingUsers.filter(user => {
                 const fullName = `${user.first_name && user.first_name !== 'string' ? user.first_name : ''} ${user.last_name && user.last_name !== 'string' ? user.last_name : ''}`.toLowerCase();
-                
-                const matchesSearch = !searchQuery || 
+
+                const matchesSearch = !searchQuery ||
                     (user.id !== undefined && user.id.toString().includes(searchQuery)) ||
                     fullName.includes(searchQuery) ||
                     (user.username && user.username.toLowerCase().includes(searchQuery)) ||
@@ -892,7 +1091,7 @@
 
                 const card = document.createElement('div');
                 card.className = "bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md hover:border-brand-300 cursor-pointer transition-all flex flex-col justify-between group relative overflow-hidden";
-                
+
                 // Click card opens enlarged detail modal
                 card.onclick = () => {
                     openUserModal(user);
@@ -919,11 +1118,11 @@
                                     <p class="text-[11px] text-slate-400 font-mono">@${user.username || 'username'}</p>
                                 </div>
                             </div>
-                            
+
                             <!-- Score & Quick Delete Button -->
                             <div class="flex flex-col items-end gap-1.5">
-                                <button onclick="event.stopPropagation(); openDeleteConfirmationModal(${JSON.stringify(user).replace(/"/g, '&quot;')})" 
-                                    title="Supprimer cet utilisateur" 
+                                <button onclick="event.stopPropagation(); openDeleteConfirmationModal(${JSON.stringify(user).replace(/"/g, '&quot;')})"
+                                    title="Supprimer cet utilisateur"
                                     class="w-7 h-7 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 flex items-center justify-center transition-all">
                                     <i class="fa-solid fa-trash-can text-xs"></i>
                                 </button>
@@ -984,19 +1183,19 @@
 
             const modalImg = document.getElementById('modal-avatar-img');
             modalImg.src = avatarUrl;
-            
+
             const modalAvatarLink = document.getElementById('modal-avatar-link');
             if (modalAvatarLink) modalAvatarLink.href = avatarUrl;
 
             document.getElementById('modal-id-badge').innerText = `ID: #${user.id !== undefined ? user.id : 0}`;
-            
+
             const sexeBadge = document.getElementById('modal-sexe-badge');
             sexeBadge.innerText = user.sexe || 'N/A';
             sexeBadge.className = `px-2 py-0.5 text-[10px] font-bold rounded-md uppercase ${user.sexe === 'H' ? 'bg-blue-500/30 text-blue-200' : 'bg-pink-500/30 text-pink-200'}`;
 
             document.getElementById('modal-user-fullname').innerText = fullName;
             document.getElementById('modal-user-username').innerText = `@${user.username || 'username'}`;
-            
+
             document.getElementById('modal-activation-code').innerText = user.activation_code || 'SANS_CODE';
             document.getElementById('modal-score').innerText = user.score !== undefined ? user.score : 0;
 
@@ -1028,17 +1227,22 @@
 
         function saveApiConfig(e) {
             e.preventDefault();
+            AUTH_CONFIG.baseUrl = document.getElementById('auth-base-url-input').value.trim();
             API_CONFIG.url = document.getElementById('api-url-input').value.trim();
             API_CONFIG.deleteUrlPattern = document.getElementById('api-delete-url-input').value.trim();
-            API_CONFIG.token = document.getElementById('api-token-input').value.trim();
 
+            localStorage.setItem('auth_base_url', AUTH_CONFIG.baseUrl);
             localStorage.setItem('pending_api_url', API_CONFIG.url);
             localStorage.setItem('pending_api_delete_url', API_CONFIG.deleteUrlPattern);
-            localStorage.setItem('pending_api_token', API_CONFIG.token);
 
             updateApiUrlDisplay();
             toggleApiSettingsModal();
-            fetchPendingUsersFromAPI(false);
+
+            if (AUTH_CONFIG.accessToken) {
+                fetchPendingUsersFromAPI(false);
+            } else {
+                showLoginModal();
+            }
         }
 
         function updateApiUrlDisplay() {
@@ -1114,7 +1318,8 @@
             document.getElementById('loading-state').classList.add('hidden');
             const apiSettingsModal = document.getElementById('api-settings-modal');
             if (!apiSettingsModal.classList.contains('hidden')) apiSettingsModal.classList.add('hidden');
-            
+            hideLoginModal();
+
             updateStatusBadge('success', 'Données de test chargées');
             showToast("Données démo chargées avec succès", "info");
             applyFilters();
@@ -1164,7 +1369,7 @@
         function showToast(message, type = "info") {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
-            
+
             let bgColors = "bg-slate-900 text-white";
             let icon = "fa-circle-info";
 
