@@ -18,7 +18,7 @@ from drf_spectacular.utils import extend_schema, OpenApiResponse
 from drf_spectacular.utils import extend_schema
 from rest_framework import status 
 from rest_framework_simplejwt.tokens import RefreshToken 
-from .tasks import hello
+from .tasks import verifier_activite
 
 # Create your views here.
 
@@ -70,6 +70,7 @@ class ApplicationModelView(viewsets.ModelViewSet):
             raise serializers.ValidationError(
             "Session invalide."
         )
+        
         return serializer.save(session=session)
     
     permission_classes = [IsAuthenticated]

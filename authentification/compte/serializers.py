@@ -9,8 +9,8 @@ from datetime import datetime
 from drf_extra_fields.fields import HybridImageField #C'est cette bibliothèque qui nous permet de pouvoir faire l'enregistrement des photos même en base 64
 from rest_framework_simplejwt.tokens import RefreshToken 
 from rest_framework.response import Response
-
-
+from .tasks import verifier_activite
+import json
 User = get_user_model()
 
 
@@ -111,6 +111,8 @@ class ApplicationSerializer(serializers.ModelSerializer):
         session = application.session 
         session.heure_fin = timezone.now().time()
         session.save(update_fields=['heure_fin'])
+        #Faire la vérification si c'est bad avant de faire l'enregistrement 
+        verifier_activite.delay(application.id,json.dumps(validated_data.get('nom')))
         return application
 
 class BadActionSerializer(serializers.ModelSerializer):

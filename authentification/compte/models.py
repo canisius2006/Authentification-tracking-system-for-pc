@@ -24,7 +24,8 @@ def heure_actuelle():
     """Cette fonction va nous permettre d'avoir l'heure actuelle """
     return timezone.localtime().time()
 def jour_actuelle():
-    return timezone.localtime().date
+    return timezone.localtime().date()
+
 class Session_activite(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.CASCADE,related_name="sessions")
     jour = models.DateField(verbose_name='Jour',default=jour_actuelle)
@@ -37,7 +38,7 @@ class Session_activite(models.Model):
 
 class Application(models.Model):
     session = models.ForeignKey(Session_activite,on_delete=models.CASCADE,related_name='applications')
-    nom = models.CharField(max_length=25,verbose_name='Nom')
+    nom = models.CharField(max_length=255,verbose_name='Nom')
     heure_debut = models.TimeField(verbose_name='Heure de debut',default=heure_actuelle)
     heure_fin = models.TimeField(verbose_name='Heure de fin',default=heure_actuelle)
 
@@ -46,7 +47,7 @@ class Application(models.Model):
 
 class Bad_action(models.Model):
     application = models.ForeignKey(Application,on_delete=models.CASCADE,related_name='bad_actions')
-    titre = models.CharField(max_length=20,verbose_name='Titre',blank=True,null=True)
+    titre = models.CharField(max_length=255,verbose_name='Titre',blank=True,null=True)
     text_input = models.TextField(verbose_name='Texte_brute')
     justification = models.TextField(verbose_name="Justification IA",)
     created_at = models.DateTimeField(auto_now_add=True)
