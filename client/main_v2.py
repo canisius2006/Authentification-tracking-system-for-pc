@@ -23,9 +23,23 @@ placée dans un unique CTkScrollableFrame qui défile en bloc si besoin :
 les boutons gardent toujours leur taille normale, c'est la fenêtre qui
 défile pour les révéler, au lieu qu'un scrollbar soit limité à une
 sous-frame interne.
+
+Correction UX caméra (dernière modification) : ouvrir une webcam avec
+OpenCV (cv2.VideoCapture) peut prendre facilement 0,5 à 2 secondes.
+Avant, cet appel était fait de façon SYNCHRONE au moment même où
+l'utilisateur arrivait sur l'étape photo : l'interface se figeait
+pendant l'ouverture, ce qui donnait une impression de lenteur/blocage.
+Deux changements corrigent ça :
+  1. L'ouverture de la caméra (cv2.VideoCapture) se fait maintenant
+     toujours dans un thread séparé (jamais sur le thread Tk).
+  2. La caméra est PRÉCHARGÉE en arrière-plan dès que l'utilisateur
+     arrive sur la page d'inscription (donc pendant qu'il saisit son
+     nom, à l'étape 1), de sorte que lorsqu'il atteint l'étape photo,
+     la caméra est déjà prête et l'aperçu s'affiche instantanément.
 """
 
 import json
+import platform
 import re
 import threading
 import urllib.error
@@ -169,7 +183,8 @@ class MainApp(ctk.CTk):
     def _on_close(self):
         """S'assure que la webcam est bien libérée avant de fermer
         l'application (au cas où l'utilisateur quitte pendant que la
-        caméra de l'étape photo est active)."""
+        caméra de l'étape photo est active, ou pendant qu'elle est en
+        cours de préchargement)."""
         register_page = self.pages.get("register")
         if register_page is not None:
             register_page._stop_camera_preview()
@@ -248,12 +263,26 @@ class MainApp(ctk.CTk):
             page.place(relx=0, rely=0, relwidth=1, relheight=1)
 
     def show_page(self, page_name):
+        # Si on quitte la page d'inscription (peu importe le chemin emprunté :
+        # onglet d'en-tête, lien "Déjà un compte ?", etc.), on coupe/relâche
+        # systématiquement la caméra (flux actif ET capture préchargée en
+        # arrière-plan) pour ne jamais laisser la webcam allumée inutilement.
+        if page_name != "register":
+            register_page = self.pages.get("register")
+            if register_page is not None:
+                register_page._stop_camera_preview()
+
         for page in self.pages.values():
             page.lower()
         target = self.pages.get(page_name)
         if target:
             target.lift()
             self._update_nav_buttons(page_name)
+            if page_name == "register":
+                # Précharge la webcam dès l'arrivée sur l'inscription (donc
+                # pendant que l'utilisateur remplit encore son nom à l'étape
+                # 1) afin que l'étape photo s'affiche sans délai perceptible.
+                target._preload_camera()
 
     def _update_nav_buttons(self, page_name):
         active_color = COLORS["text"]
@@ -466,6 +495,13 @@ class RegisterPage(ctk.CTkFrame):
         self.camera_capture = None
         self._camera_active = False
         self._camera_after_id = None
+        # Capture déjà ouverte en arrière-plan (préchargement), pas encore
+        # "consommée" par _start_camera_preview. Permet un affichage
+        # instantané quand l'utilisateur atteint réellement l'étape photo.
+        self._camera_ready_capture = None
+        # Empêche de lancer deux ouvertures de caméra en parallèle
+        # (préchargement + arrivée directe sur l'étape, par exemple).
+        self._camera_opening = False
         # --------------------------------------------------------------
         # Variable pour savoir si la fonction de registration a déjà été exécuté 
         self.executed = False #cette variable pour savoir si l'inscription  a déjà été exécutée
@@ -721,6 +757,11 @@ class RegisterPage(ctk.CTkFrame):
     # ment quand on arrive sur l'étape "photo" (voir show_step) et sa
     # dernière image capturée reste uniquement en mémoire, jamais écrite
     # sur le disque.
+    #
+    # Ouverture de la webcam : TOUJOURS dans un thread séparé (jamais sur
+    # le thread Tk, sous peine de figer l'interface pendant l'ouverture du
+    # périphérique), et préchargée en arrière-plan dès l'arrivée sur la
+    # page d'inscription pour un affichage instantané à l'étape photo.
     # ------------------------------------------------------------------
     def _set_preview_image(self, ctk_image, text=""):
         """Met à jour l'image affichée dans `photo_preview_label` de façon sûre.
@@ -756,37 +797,151 @@ class RegisterPage(ctk.CTkFrame):
         # On garde la référence forte APRÈS le configure réussi, jamais avant.
         self._displayed_preview_image = ctk_image
 
+    def _ensure_cv2(self):
+        """Importe cv2 une seule fois et le met en cache. Retourne False si
+        indisponible."""
+        if self._cv2 is not None:
+            return True
+        try:
+            import cv2
+            self._cv2 = cv2
+            return True
+        except ImportError:
+            return False
+
+    def _open_video_capture(self):
+        """Ouvre la capture vidéo avec le backend le plus rapide disponible.
+
+        Appelée UNIQUEMENT depuis un thread d'arrière-plan (jamais depuis le
+        thread Tk) car `cv2.VideoCapture(...)` est une opération bloquante,
+        parfois longue de plusieurs centaines de millisecondes.
+
+        Sur Windows, le backend par défaut (MSMF) est réputé lent à
+        s'initialiser ; le backend DirectShow (CAP_DSHOW) s'ouvre nettement
+        plus vite. On l'essaie en priorité et on retombe sur le backend par
+        défaut si besoin."""
+        cv2 = self._cv2
+        if platform.system() == "Windows":
+            capture = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+            if capture.isOpened():
+                return capture
+            capture.release()
+        return cv2.VideoCapture(0)
+
+    def _preload_camera(self):
+        """Ouvre la webcam en arrière-plan dès que l'utilisateur arrive sur
+        la page d'inscription (donc typiquement pendant qu'il saisit encore
+        son prénom/nom à l'étape 1). Ainsi, quand il atteint réellement
+        l'étape photo, la caméra est déjà chaude et l'aperçu s'affiche sans
+        délai perceptible, au lieu de le faire attendre l'ouverture du
+        périphérique à ce moment précis."""
+        if self.profile_photo_image is not None:
+            return  # une photo a déjà été prise, inutile de préchauffer
+        if self.camera_capture is not None or self._camera_ready_capture is not None:
+            return  # déjà ouverte / déjà préchargée
+        if self._camera_opening:
+            return  # une ouverture est déjà en cours
+
+        if not self._ensure_cv2():
+            return  # opencv absent : _start_camera_preview affichera le message adapté le moment venu
+
+        self._camera_opening = True
+
+        def worker():
+            capture = self._open_video_capture()
+            opened = capture.isOpened()
+
+            def on_done():
+                self._camera_opening = False
+                if not opened:
+                    capture.release()
+                    return
+                if self.profile_photo_image is not None or self._camera_active:
+                    # Entre-temps une photo a été prise, ou le flux a déjà
+                    # été démarré autrement : cette capture est de trop.
+                    capture.release()
+                    return
+                self._camera_ready_capture = capture
+                # Si l'utilisateur est déjà arrivé sur l'étape photo et
+                # attend, on démarre l'affichage immédiatement.
+                if self.current_step == self.PHOTO_STEP_INDEX and not self._camera_active:
+                    self._start_camera_preview()
+
+            self.after(0, on_done)
+
+        threading.Thread(target=worker, daemon=True).start()
+
     def _start_camera_preview(self):
         """Démarre le flux caméra en direct dans l'aperçu de l'étape 2.
 
         Ne fait rien si une photo a déjà été prise (on affiche alors cette
-        photo à la place) ou si le flux est déjà en cours."""
+        photo à la place) ou si le flux est déjà en cours. L'ouverture du
+        périphérique (si elle n'a pas déjà été préchargée) se fait dans un
+        thread séparé pour ne jamais bloquer l'interface."""
         if self.profile_photo_image is not None:
             self._show_captured_photo_state()
             return
         if self._camera_active:
             return
 
-        if self._cv2 is None:
-            try:
-                import cv2
-                self._cv2 = cv2
-            except ImportError:
-                self._show_camera_unavailable(
-                    "\U0001F4F7 La prise de photo nécessite le module opencv-python.\n"
-                    "Vous pouvez continuer sans photo."
-                )
-                return
+        # Chemin rapide : la caméra a déjà été ouverte à l'avance pendant
+        # les étapes précédentes → on l'utilise directement, affichage
+        # instantané, sans délai d'ouverture du périphérique.
+        if self._camera_ready_capture is not None:
+            self.camera_capture = self._camera_ready_capture
+            self._camera_ready_capture = None
+            self._activate_camera_ui()
+            return
 
-        capture = self._cv2.VideoCapture(0)
-        if not capture.isOpened():
-            capture.release()
+        if not self._ensure_cv2():
             self._show_camera_unavailable(
-                "\U0001F4F7 Caméra non disponible.\nVous pouvez continuer sans photo."
+                "\U0001F4F7 La prise de photo nécessite le module opencv-python.\n"
+                "Vous pouvez continuer sans photo."
             )
             return
 
-        self.camera_capture = capture
+        # Message d'attente court pendant l'ouverture en arrière-plan
+        # (utile seulement si le préchargement n'a pas eu le temps de
+        # finir avant que l'utilisateur n'arrive sur cette étape).
+        self._set_preview_image(None, text="Initialisation de la caméra...")
+        self.camera_status_label.configure(text="")
+
+        if self._camera_opening:
+            # Une ouverture (préchargement) est déjà en cours : on la
+            # laisse se terminer, _preload_camera prendra le relais dès
+            # qu'elle sera prête. Pas besoin d'en lancer une deuxième.
+            return
+
+        self._camera_opening = True
+
+        def worker():
+            capture = self._open_video_capture()
+            opened = capture.isOpened()
+
+            def on_done():
+                self._camera_opening = False
+                if not opened:
+                    capture.release()
+                    self._show_camera_unavailable(
+                        "\U0001F4F7 Caméra non disponible.\nVous pouvez continuer sans photo."
+                    )
+                    return
+                if self.current_step != self.PHOTO_STEP_INDEX or self.profile_photo_image is not None:
+                    # L'utilisateur a changé d'étape ou pris une photo
+                    # autrement pendant l'ouverture : capture inutile.
+                    capture.release()
+                    return
+                self.camera_capture = capture
+                self._activate_camera_ui()
+
+            self.after(0, on_done)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _activate_camera_ui(self):
+        """Bascule l'interface en mode 'caméra active' (utilisée à la fois
+        par le chemin rapide préchargé et par l'ouverture standard) et lance
+        la boucle de rafraîchissement des images."""
         self._camera_active = True
         self._set_preview_image(None, text="")
         self.camera_status_label.configure(text="\U0001F3A5 Caméra active — souriez !", text_color=COLORS["text_muted"])
@@ -813,7 +968,9 @@ class RegisterPage(ctk.CTkFrame):
 
     def _stop_camera_preview(self):
         """Coupe le flux caméra et libère la webcam (appelé en quittant
-        l'étape photo, en changeant de page ou en fermant l'application)."""
+        l'étape photo, en changeant de page ou en fermant l'application).
+        Relâche aussi une éventuelle capture préchargée mais jamais
+        utilisée, pour ne jamais laisser la webcam allumée inutilement."""
         self._camera_active = False
         if self._camera_after_id is not None:
             try:
@@ -824,6 +981,9 @@ class RegisterPage(ctk.CTkFrame):
         if self.camera_capture is not None:
             self.camera_capture.release()
             self.camera_capture = None
+        if self._camera_ready_capture is not None:
+            self._camera_ready_capture.release()
+            self._camera_ready_capture = None
 
     def _show_camera_unavailable(self, message):
         self._camera_active = False
