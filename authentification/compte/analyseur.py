@@ -3,13 +3,19 @@ import math
 import re
 import ollama
 import time 
-
+import ast 
 # ============================================================
 # 1. Normalisation de l'entrée
 # ============================================================
 t = time.time()
 
+def str_to_dict(chaine):
+    return ast.literal_eval(chaine)
+
 def normaliser_activite(brut: dict) -> dict:
+    brut = str_to_dict(brut)
+    print(type(brut))
+    
     application = brut.get("application", "inconnue")
     titre_parts = [str(v) for cle, v in brut.items() if cle != "application"]
     titre = " ".join(titre_parts).strip() or "sans titre"

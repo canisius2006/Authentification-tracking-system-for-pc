@@ -4,6 +4,12 @@ from django.db import transaction
 from .models import Application, Bad_action
 from .analyseur import analyser_activite
 import json 
+import ast
+
+import ast
+
+def str_to_dict(chaine):
+    return ast.literal_eval(chaine)
 
 @shared_task
 def verifier_activite(application_id, activite):
@@ -11,7 +17,15 @@ def verifier_activite(application_id, activite):
     Analyse une activité et crée une Bad_action uniquement
     si l'analyseur indique que l'activité est mauvaise.
     """
-    
+    activites = eval(activite)
+    print(activites)
+    print(type(activites))
+
+    if isinstance(activites,str):
+        print("ce n'est pas un dict")
+        return
+   
+    print('\n\n\n')
     # 1. Récupérer l'application
     try:
         application = Application.objects.get(id=application_id)
@@ -22,7 +36,7 @@ def verifier_activite(application_id, activite):
         }
 
     # 2. Analyser l'activité
-    resultat = dict(analyser_activite(json.loads(activite)))
+    resultat = dict(analyser_activite(activites))
 
     # 3. L'activité n'est pas mauvaise => rien à créer
     if resultat.get("mauvais") is not True:
