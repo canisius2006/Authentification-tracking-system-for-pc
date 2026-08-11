@@ -140,7 +140,7 @@ class BadActionSerializer(serializers.ModelSerializer):
         else:
             action = Bad_action.objects.create(**validated_data)
             user = action.application.session.user 
-            user.score  = F('score') - 2 
+            user.score  = F('score') - 1 
 
         user = action.application.session.user 
         session = action.application.session
