@@ -2,6 +2,7 @@ import win32gui
 import win32process
 import psutil
 import time 
+import json 
 time.sleep(3)
 def application_active():
 
@@ -28,10 +29,10 @@ def application_active():
         application = "Inconnu"
 
 
-    return {
-        "application": application,
-        "titre": titre
-    }
+    return str(json.dumps({
+        "application": application,#.replace("'",""),
+        "titre": titre#.replace("'","")
+    }))
 
 
 if __name__=='__main__':

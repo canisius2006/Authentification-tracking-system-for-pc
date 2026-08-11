@@ -1,21 +1,17 @@
 import json
 import math
 import re
+import time
 import ollama
-import time 
-import ast 
+
+t = time.time()
+
+
 # ============================================================
 # 1. Normalisation de l'entrée
 # ============================================================
-t = time.time()
-
-def str_to_dict(chaine):
-    return ast.literal_eval(chaine)
 
 def normaliser_activite(brut: dict) -> dict:
-    brut = str_to_dict(brut)
-    print(type(brut))
-    
     application = brut.get("application", "inconnue")
     titre_parts = [str(v) for cle, v in brut.items() if cle != "application"]
     titre = " ".join(titre_parts).strip() or "sans titre"
@@ -83,12 +79,44 @@ def verifier_blocklist(activite: dict, texte: str) -> dict | None:
 
 
 # ============================================================
-# 4. Classification par similarité d'embeddings
-#    CORRECTIF 1 : bge-m3 (multilingue, réel modèle d'embedding), pas qwen.
-#        → ollama pull bge-m3
-#    CORRECTIF 2 : prototypes sans nom de plateforme (YouTube, Chrome...)
-#    pour éviter la contamination par simple mot commun. Le texte comparé
-#    est aussi nettoyé de ces suffixes avant l'embedding.
+# 4. Mots-clés de contenu non ambigus (complément à la blocklist)
+#    Contrairement à la blocklist (qui identifie des SITES), cette couche
+#    identifie des TYPES DE CONTENU quasi jamais ambigus, peu importe le
+#    site : bande-annonces, clips musicaux, numéros d'épisode/saison.
+#    Protégée par la même porte de négation que le reste.
+# ============================================================
+
+MOTIFS_CONTENU_DIVERTISSEMENT = [
+    r"\btrailer\b",
+    r"\bbande[- ]annonce\b",
+    r"\bofficial music video\b",
+    r"\bclip officiel\b",
+    r"episode \d+",
+    r"épisode \d+",
+    r"saison \d+",
+    r"\bvostfr\b",
+    r"\bvf\b",
+    r"\bgameplay\b",
+    r"\bspeedrun\b",
+]
+
+
+def verifier_mots_cles_contenu(activite: dict, texte: str) -> dict | None:
+    for motif in MOTIFS_CONTENU_DIVERTISSEMENT:
+        trouve = re.search(motif, texte)
+        if trouve:
+            return {
+                "title": activite["titre"],
+                "mauvais": True,
+                "confiance": 0.9,
+                "justification": f"Type de contenu de divertissement identifié ({trouve.group()}).",
+                "methode": "mots_cles",
+            }
+    return None
+
+
+# ============================================================
+# 5. Classification par similarité d'embeddings (bge-m3, multilingue)
 # ============================================================
 
 MODELE_EMBEDDING = "bge-m3"
@@ -173,7 +201,7 @@ def classifier_par_embeddings(
     meilleur_score = max(score_educatif, score_divertissement)
 
     if marge < seuil_marge or meilleur_score < seuil_plancher:
-        return None  # ambigu ou hors périmètre → on laisse le LLM trancher
+        return None
 
     mauvais = score_divertissement > score_educatif
     confiance = min(0.9, 0.5 + marge)
@@ -191,12 +219,7 @@ def classifier_par_embeddings(
 
 
 # ============================================================
-# 5. LLM génératif — dernier recours pour les cas ambigus/négation.
-#    Le champ "confiance" auto-déclaré par un petit modèle n'est pas
-#    fiable en soi (on l'a vu à plusieurs reprises) : on le combine donc
-#    à un second appel (température différente) pour vérifier l'accord
-#    entre les deux réponses avant de faire confiance à la décision.
-#    Si l'un des deux échoue ou qu'elles se contredisent → incertain.
+# 6. LLM génératif — dernier recours pour les cas ambigus/négation.
 # ============================================================
 
 SEUIL_CONFIANCE = 0.55
@@ -205,7 +228,9 @@ SYSTEM_PROMPT = """Tu classes une activité informatique dans un centre éducati
 (objectif : apprendre, programmer, faire des recherches).
 
 mauvais=false : programmation, IA, documentation technique, recherche légitime.
-mauvais=true : divertissement (jeux, films, séries, réseaux sociaux de loisir).
+mauvais=true : divertissement (jeux, films, séries, bandes-annonces, clips musicaux,
+réseaux sociaux de loisir) — même si le contenu est parfaitement légal. Le critère
+n'est PAS "légal vs illégal", c'est "lié à l'apprentissage/programmation vs loisir".
 
 Attention au sens réel de la phrase : "arrêter/éviter/reportage sur les mangas"
 n'est PAS du divertissement, c'est une recherche sur le sujet.
@@ -215,9 +240,12 @@ plutôt que de deviner.
 
 JSON uniquement : {"title": "...", "mauvais": false, "confiance": 0.9, "justification": "..."}
 
-Exemple :
+Exemples :
 {"application": "chrome.exe", "titre": "comment faire pour arrêter les mangas - Google Chrome"}
 → {"title": "Recherche sur l'arrêt d'une habitude", "mauvais": false, "confiance": 0.8, "justification": "La recherche porte sur comment arrêter, ce n'est pas de la consommation de divertissement."}
+
+{"application": "chrome.exe", "titre": "Spider-Man: Brand New Day Trailer - YouTube"}
+→ {"title": "Visionnage d'une bande-annonce de film", "mauvais": true, "confiance": 0.85, "justification": "Contenu de divertissement (bande-annonce de film), légal mais sans lien avec la programmation ou la recherche."}
 """
 
 
@@ -284,10 +312,6 @@ def analyser_avec_llm(activite: dict) -> dict:
 
 # ============================================================
 # Point d'entrée principal
-#
-# "mauvais" peut valoir True, False, ou None (incertain). Côté score :
-# un None ne doit JAMAIS être traité comme False — c'est "à vérifier",
-# pas "c'est bon".
 # ============================================================
 
 def analyser_activite(activite_brute: dict) -> dict:
@@ -301,8 +325,13 @@ def analyser_activite(activite_brute: dict) -> dict:
     if resultat is not None:
         return resultat
 
+    resultat = verifier_mots_cles_contenu(activite, texte)
+    if resultat is not None:
+        return resultat
+
     resultat = classifier_par_embeddings(activite, texte)
     if resultat is not None:
+        
         return resultat
 
     return analyser_avec_llm(activite)
@@ -310,14 +339,13 @@ def analyser_activite(activite_brute: dict) -> dict:
 
 if __name__ == "__main__":
     cas_de_test = [
+        {'application': 'chrome.exe', 'titre': '(3) Spooder-Man: Brand New Day Trailer - YouTube - Google Chrome'},
         {'application': 'Code.exe', 'titre': 'test.py - developpement - Visual Studio Code'},
-        # {'application': 'chrome.exe', 'titre': '(9) Benson Boone - Beautiful Things (Official Music Video) - YouTube - Google Chrome'},
-        # {'application': 'chrome.exe', 'titre': 'Django pour les débutants : Introduction - YouTube - Google Chrome'},
-        # {'application': 'chrome.exe', 'titre': 'Historique de visionnage - YouTube - Google Chrome'}
+        {'application': 'chrome.exe', 'titre': 'Django pour les débutants : Introduction - YouTube - Google Chrome'},
     ]
     for activite_brute in cas_de_test:
         data = analyser_activite(activite_brute)
         print(json.dumps(data, indent=4, ensure_ascii=False))
         print("---")
 
-print(time.time() - t,'secondes')
+print(time.time() - t, 'secondes')

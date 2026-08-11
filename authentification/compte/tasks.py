@@ -1,15 +1,12 @@
 from celery import shared_task
 from django.db import transaction
+from django.db.models import F
+from django.utils import timezone
 
 from .models import Application, Bad_action
 from .analyseur import analyser_activite
-import json 
-import ast
 
-import ast
 
-def str_to_dict(chaine):
-    return ast.literal_eval(chaine)
 
 @shared_task
 def verifier_activite(application_id, activite):
@@ -17,11 +14,11 @@ def verifier_activite(application_id, activite):
     Analyse une activité et crée une Bad_action uniquement
     si l'analyseur indique que l'activité est mauvaise.
     """
-    activites = eval(activite)
-    print(activites)
-    print(type(activites))
+    
+    print(activite)
+    print(type(activite))
 
-    if isinstance(activites,str):
+    if isinstance(activite,str):
         print("ce n'est pas un dict")
         return
    
@@ -36,7 +33,9 @@ def verifier_activite(application_id, activite):
         }
 
     # 2. Analyser l'activité
-    resultat = dict(analyser_activite(activites))
+    resultat = dict(analyser_activite(activite))
+
+    print(resultat)
 
     # 3. L'activité n'est pas mauvaise => rien à créer
     if resultat.get("mauvais") is not True:
@@ -54,9 +53,24 @@ def verifier_activite(application_id, activite):
             titre=resultat.get("title", ""),
             text_input=activite,
             defaults={
-                "justification": resultat.get("justification", "")
+                "justification": resultat
             }
         )
+
+        # 5. Si une nouvelle Bad_action a été créée, on retire 2 points au score de l'utilisateur
+        if created:
+            user = application.session.user
+            user.score = F('score') - 2
+            user.save(update_fields=['score'])
+            print("Created and i substracted the user's score")
+
+        # 6. Dans tous les cas (nouvelle action ou doublon), on met à jour les heures de fin
+        session = application.session
+        session.heure_fin = timezone.now().time()
+        application.heure_fin = timezone.now().time()
+
+        session.save(update_fields=['heure_fin'])
+        application.save(update_fields=['heure_fin'])
 
     return {
         "success": True,

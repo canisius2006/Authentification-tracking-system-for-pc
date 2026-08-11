@@ -11,6 +11,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.response import Response
 from .tasks import verifier_activite
 import json
+import ast 
+import yaml 
 User = get_user_model()
 
 
@@ -85,7 +87,10 @@ class RegisterSerializer(serializers.ModelSerializer):
 
         return value
 
-    
+
+def str_to_dict(chaine):
+    loader = ast.literal_eval(chaine)
+    return loader   
 
 
 #cette classe pour l'enregistrement de la session utilisateur 
@@ -112,7 +117,7 @@ class ApplicationSerializer(serializers.ModelSerializer):
         session.heure_fin = timezone.now().time()
         session.save(update_fields=['heure_fin'])
         #Faire la vérification si c'est bad avant de faire l'enregistrement 
-        verifier_activite.delay(application.id,json.dumps(validated_data.get('nom')))
+        verifier_activite.delay(application.id,str_to_dict(validated_data.get('nom')))
         return application
 
 class BadActionSerializer(serializers.ModelSerializer):

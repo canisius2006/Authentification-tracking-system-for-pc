@@ -175,9 +175,4 @@ def dash(request):
 
 
 def ma_vue(request):
-
-    hello.delay()
-
-    return JsonResponse({
-        "message": "Tâche lancée"
-    })
+    return render(request,'test.html')
