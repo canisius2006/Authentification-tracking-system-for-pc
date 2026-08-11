@@ -129,7 +129,7 @@ Le pipeline d'analyse est effectué en cascade :
 Si l'activité est considérée comme mauvaise :
 
 - une `Bad_action` est créée ;
-- **2 points sont retirés au score de l'utilisateur**.
+- **1 point est retiré au score de l'utilisateur**.
 
 Le score initial est de **20 points**.
 
