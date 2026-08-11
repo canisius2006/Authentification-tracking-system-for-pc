@@ -97,6 +97,17 @@ class App(ctk.CTk):
         cursor = conn.cursor()
 
         try:
+            # 1. Créer la table si elle n'existe pas
+            cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                nom VARCHAR(100),
+                prenom VARCHAR(100),
+                date VARCHAR(100),
+                nom_pc VARCHAR(100)
+            )
+            """)
+            
             sql = "INSERT INTO users (nom,prenom,date,nom_pc) VALUES (%s,%s,%s,%s)"
             valeurs = (self.name.upper(),self.firstname.capitalize(),str(datetime.datetime.now()),self.nom_pc)
             cursor.execute(sql,valeurs)
