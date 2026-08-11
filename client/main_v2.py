@@ -693,15 +693,15 @@ class RegisterPage(ctk.CTkFrame):
         frame = ctk.CTkFrame(self.steps_container, fg_color="transparent")
         self._step_header(frame, 1)
 
-        field_label(frame, "Email (facultatif)")
+        field_label(frame, "Email ")
         self.email_entry = ctk.CTkEntry(frame, placeholder_text="nom@exemple.com", height=54, font=font(15), corner_radius=12)
         self.email_entry.pack(padx=32, pady=(0, 14), fill="x")
 
-        field_label(frame, "Téléphone (facultatif)")
+        field_label(frame, "Téléphone ")
         self.phone_entry = ctk.CTkEntry(frame, placeholder_text="+229 XX XX XX XX", height=54, font=font(15), corner_radius=12)
         self.phone_entry.pack(padx=32, pady=(0, 18), fill="x")
 
-        field_label(frame, "Photo de profil (facultatif)")
+        field_label(frame, "Photo de profil ")
 
         # Carte caméra : tout se passe ici, dans la même fenêtre. Pas de
         # sélection de fichier, pas de fenêtre séparée pour la caméra.
