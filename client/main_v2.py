@@ -113,8 +113,7 @@ class Coeur():
 
     def eteindre_ordinateur(self):
         subprocess.run(["shutdown", "/s", "/t", "30"])
-        app = tk.Tk()
-        app.withdraw()
+        
         messagebox.showinfo(title="CAEB Authentification",message="Votre ordinateur va s'éteindre dans quelques instants (30s)")
         
         app.mainloop()
