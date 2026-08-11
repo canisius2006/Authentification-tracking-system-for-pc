@@ -1,431 +1,285 @@
 # Authentification-tracking-system-for-pc
-Pour l'authentification des utilisateurs sur les Ordinateurs d'un cyber, la suivi automatique sans suivi boosté à l'ia avec attribution de scores aux utilisateurs(système de points d'un permis de conduire)
 
+Système d'authentification et de suivi automatique des utilisateurs sur les postes d'un cybercafé, avec attribution d'un score aux utilisateurs.
 
-## Version 1.0 
-# Authentification CAEB - Système d'inscription
+Le projet a évolué en deux versions :
 
-## Description
+- **V1** : le client communique directement avec MySQL.
+- **V2** : le client conserve le principe et l'interface de la V1, mais passe par une **API REST Django/DRF** pour communiquer avec le serveur. La V2 ajoute également le suivi des activités et leur analyse asynchrone par IA.
 
-**Authentification CAEB** est une application graphique développée en Python avec **CustomTkinter** permettant d'enregistrer les utilisateurs lors de leur première utilisation sur un poste informatique.
-
-L'application :
-
-* affiche une interface d'inscription plein écran ;
-* demande le nom et le prénom de l'utilisateur ;
-* effectue une validation des champs saisis ;
-* récupère automatiquement le nom du poste informatique ;
-* enregistre les informations dans une base de données MySQL distante ;
-* peut être configurée pour se lancer automatiquement au démarrage de Windows.
+La V1 n'est donc pas un projet différent : elle constitue la base du client dont la V2 reprend le fonctionnement général.
 
 ---
 
-## Fonctionnalités
+# Version 2.0 — Version actuelle
 
-* Interface graphique moderne avec `customtkinter`.
-* Validation automatique du nom et du prénom.
-* Détection automatique du nom du PC.
-* Connexion à une base MySQL.
-* Enregistrement :
+## 1. Architecture générale
 
-  * Nom de l'utilisateur ;
-  * Prénom ;
-  * Date et heure d'inscription ;
-  * Nom du poste informatique.
-* Exécution automatique au démarrage du système.
+Le projet est composé de deux parties principales :
 
----
+- **`client/`** : application Python/CustomTkinter installée sur les postes clients.
+- **`authentification/`** : serveur Django fournissant l'API REST, l'authentification JWT et le traitement des activités.
 
-## Technologies utilisées
+### Évolution de la communication entre les versions
 
-* Python 3.x
-* CustomTkinter
-* Tkinter
-* MySQL Connector
-* MySQL Server
-* Auto Py To Exe (conversion en fichier `.exe`)
+```text
+V1
+Client CustomTkinter
+        │
+        │ MySQL Connector
+        ▼
+   Serveur MySQL
 
----
 
-## Installation des dépendances
-
-Avant d'exécuter le script, installer les bibliothèques nécessaires :
-
-```bash
-pip install customtkinter mysql-connector-python
+V2
+Client CustomTkinter
+        │
+        │ HTTP / REST + JWT
+        ▼
+   API Django / DRF
+        │
+        ▼
+     MySQL
 ```
 
----
+Le fonctionnement côté client reste basé sur la configuration et les principes de la V1 : interface CustomTkinter, inscription de l'utilisateur, récupération du nom du poste, lancement automatique au démarrage et déploiement sous Windows.
 
-## Configuration de la base de données MySQL
+La différence fondamentale est que **la V2 ne se connecte plus directement à MySQL depuis le client**. Les données sont envoyées à l'API Django, qui se charge de communiquer avec la base de données.
 
-L'application nécessite une base de données MySQL appelée :
+La V2 ajoute ensuite le suivi des activités :
 
-```
-authentification
-```
-
-La table utilisée est :
-
-```sql
-CREATE TABLE users (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    nom VARCHAR(100),
-    prenom VARCHAR(100),
-    date DATETIME,
-    nom_pc VARCHAR(100)
-);
-```
-
-Le compte MySQL utilisé par l'application doit avoir les droits d'insertion :
-
-```
-Utilisateur : inscription
-Mot de passe : ******
-Base : authentification
-```
-
-Le serveur MySQL doit être accessible depuis les postes clients.
-
----
-
-## Configuration réseau
-
-Dans le script, l'adresse IP du serveur MySQL est récupérée grâce au nom réseau :
-
-```python
-adresse_ip = socket.gethostbyname('CIA-008')
-```
-
-Le poste serveur doit donc être accessible avec le nom :
-
-```
-CIA-008
-```
-
-ou cette ligne doit être modifiée avec l'adresse IP fixe du serveur.
-
-Exemple :
-
-```python
-adresse_ip = "192.168.1.10"
+```text
+Client
+  │
+  │ activité de la fenêtre active
+  │ toutes les 20 secondes
+  ▼
+API Django
+  │
+  ▼
+Celery
+  │
+  ▼
+Analyse IA
+  │
+  ├── activité correcte
+  │
+  └── mauvaise activité
+          │
+          ▼
+     Bad_action
+          │
+          ▼
+   Score utilisateur - 2
 ```
 
 ---
 
-# Génération du fichier EXE
+# 2. Fonctionnement du client
 
-Pour générer un exécutable Windows :
+Le client est une application graphique développée avec **CustomTkinter**.
 
-1. Installer Auto Py To Exe :
+Il reprend les fonctionnalités principales de la V1 :
 
-```bash
-pip install auto-py-to-exe
-```
+- interface d'inscription plein écran ;
+- saisie du nom et du prénom ;
+- validation des champs ;
+- récupération automatique du nom du PC ;
+- lancement automatique au démarrage de Windows ;
+- génération d'un exécutable `.exe`.
 
-2. Lancer :
+La V2 ajoute :
 
-```bash
-auto-py-to-exe
-```
+- inscription en plusieurs étapes ;
+- capture d'une photo de profil avec OpenCV ;
+- connexion avec JWT ;
+- rafraîchissement automatique du token ;
+- suivi de la fenêtre/application active ;
+- envoi périodique des activités à l'API ;
+- récupération périodique du score ;
+- avertissement lorsque le score atteint un seuil ;
+- arrêt automatique du poste lorsque le score atteint 0.
 
-3. Choisir :
-
-   * **Script Location** : le fichier Python principal.
-   * **One File** : activé.
-   * **Window Based** : activé (pas de console).
-   * Ajouter les icônes si nécessaire.
-
-4. Cliquer sur :
-
-```
-Convert .py to .exe
-```
-
-Le fichier `.exe` généré pourra être déployé sur les postes utilisateurs.
+La photo de profil est conservée en mémoire puis envoyée sous forme base64 ; elle n'est pas écrite sur le disque.
 
 ---
 
-# Exécution automatique au démarrage Windows
+# 3. Suivi et analyse des activités
 
-Pour permettre au programme de se lancer automatiquement au démarrage du PC, il faut ajouter une entrée dans le registre Windows.
+Le client détecte automatiquement l'application ou la fenêtre active et envoie les informations au serveur.
 
-## Modification du registre HKLM
+L'activité est envoyée toutes les **20 secondes**.
 
-Ouvrir :
+Le serveur reçoit notamment :
 
-```
-regedit
-```
+- le nom de l'application ;
+- le titre de la fenêtre ;
+- les informations nécessaires à l'identification de la session.
 
-Puis aller dans :
+Lorsqu'une activité est enregistrée, Django déclenche une tâche Celery.
 
-```
-HKEY_LOCAL_MACHINE
- └── SOFTWARE
-     └── Microsoft
-         └── Windows
-             └── CurrentVersion
-                 └── Run
-```
+Le pipeline d'analyse est effectué en cascade :
 
-Dans la clé :
+1. détection de négation contextuelle ;
+2. vérification d'une blocklist de domaines connus (`piracy.txt`) ;
+3. détection de mots-clés de divertissement non ambigus ;
+4. comparaison par embeddings avec des prototypes éducatifs et de divertissement ;
+5. appel au LLM en dernier recours.
 
-```
-Run
-```
+Si l'activité est considérée comme mauvaise :
 
-Créer une nouvelle valeur :
+- une `Bad_action` est créée ;
+- **2 points sont retirés au score de l'utilisateur**.
 
-```
-Clic droit → Nouveau → Valeur chaîne
-```
+Le score initial est de **20 points**.
 
-Nom de la valeur :
+Le client vérifie ensuite régulièrement le score :
 
-```
-AuthentificationCAEB
-```
-
-Données de la valeur :
-
-```
-"C:\Chemin\Vers\AuthCAEB.exe"
-```
-
-Exemple :
-
-```
-"C:\Program Files\CAEB\AuthCAEB.exe"
-```
+- à **10 points**, un avertissement est affiché ;
+- à **0 point**, le poste est automatiquement éteint.
 
 ---
 
-## Résultat
+# 4. Serveur Django
 
-À chaque démarrage de Windows :
+Le répertoire `authentification/` contient le serveur.
 
-1. Le système consulte la clé :
+Il fournit une API REST basée sur :
 
-```
-HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run
-```
+- Django ;
+- Django REST Framework ;
+- JWT ;
+- MySQL.
 
-2. Il détecte :
+Le serveur assure notamment :
 
-```
-AuthentificationCAEB
-```
+- l'inscription ;
+- la connexion ;
+- la gestion des sessions ;
+- la gestion des applications ;
+- l'enregistrement des activités ;
+- la gestion du score ;
+- la création des `Bad_action`.
 
-3. Il exécute automatiquement :
+Le serveur sert également d'intermédiaire entre le client et MySQL.
 
-```
-AuthCAEB.exe
-```
-
-L'application apparaît alors directement sur l'écran d'inscription.
-
----
-
-# Droits administrateur
-
-La modification de :
-
-```
-HKEY_LOCAL_MACHINE
-```
-
-nécessite des droits administrateur.
-
-Lors du déploiement sur plusieurs machines, il est recommandé d'effectuer cette étape :
-
-* via un script d'installation ;
-* via une stratégie de groupe Windows (GPO) ;
-* ou avec un outil de déploiement centralisé.
+Ainsi, le client n'a plus besoin de connaître les identifiants MySQL.
 
 ---
 
-# Raccourcis de fermeture
+# 5. Traitement asynchrone
 
-L'application bloque volontairement plusieurs raccourcis Windows :
+L'analyse des activités est réalisée avec :
 
-* `Alt + F4`
-* `Ctrl + W`
-* `Ctrl + Q`
-* `Échap`
+- **Celery** : exécution des tâches en arrière-plan ;
+- **Redis** : broker et backend de résultats ;
+- **Ollama** : modèles d'IA.
 
-Une sortie administrateur est disponible avec :
+Les modèles utilisés sont :
 
-```
-Ctrl + Shift + B
-```
+- `qwen2.5:1.5b` pour la classification générative ;
+- `bge-m3` pour les embeddings.
 
 ---
 
-# Structure du projet
+# 6. Structure du projet
 
-Exemple :
-
-```
-CAEB/
-│
-├── main.py
-├── AuthCAEB.exe
-├── README.md
-│
-└── ressources/
-    └── icone.ico
-```
-
----
-
-# Déploiement conseillé
-
-Pour un environnement professionnel :
-
-1. Installer MySQL sur un serveur accessible.
-2. Créer la base `authentification`.
-3. Générer le fichier `.exe`.
-4. Copier l'exécutable sur les postes clients.
-5. Ajouter la clé registre HKLM automatiquement.
-6. Redémarrer les postes pour vérifier l'exécution automatique.
-
----
-
-
-# Version 2.0
-
-# Authentification-tracking-system-for-pc
-
-
-
-Le projet est composé de deux parties :
-
-- **`authentification/`** — le serveur : une API REST Django (DRF + JWT), avec un pipeline d'analyse IA asynchrone (Celery + Redis + Ollama) qui juge chaque activité utilisateur.
-- **`client/`** — l'application de poste : une app CustomTkinter qui gère l'inscription, la connexion, et le suivi (fenêtre active, score) en tâche de fond.
-
-> ℹ️ Le dépôt contient deux versions du client : `main_v2.py` est la version actuelle, connectée à l'API. `main_v1.py` est l'ancienne version (v1.0), qui écrivait directement dans MySQL sans API, IA, Celery ni Redis ; elle est conservée à titre historique (voir tout en bas de ce document) mais n'est plus celle utilisée en production.
-
----
-
-## Architecture
-
-```
-Client (main_v2.py, CustomTkinter)
-   │  requêtes REST + JWT (login/inscription), toutes les 20s poste l'app active
-   ▼
-Serveur Django REST (authentification/)
-   │  à l'enregistrement d'une activité (ApplicationSerializer.create)
-   ▼
-Celery (tâche verifier_activite) ──► Redis (broker + result backend)
-   │
-   ▼
-Pipeline d'analyse (compte/analyseur.py), en cascade :
-   1. Détection de négation contextuelle (ex. "comment arrêter de regarder des séries")
-   2. Blocklist de domaines connus (piracy.txt)
-   3. Mots-clés de contenu de divertissement non ambigus (trailer, episode N, vostfr, gameplay...)
-   4. Similarité d'embeddings (modèle Ollama bge-m3) contre des prototypes éducatif / divertissement
-   5. LLM génératif (modèle Ollama qwen2.5:1.5b), en dernier recours, avec double appel et rejet en cas de désaccord
-   │
-   ▼
-Si "mauvais" : création d'un Bad_action + retrait de 2 points au score de l'utilisateur
-```
-
-Le client interroge son score toutes les minutes ; en dessous d'un certain seuil il avertit l'utilisateur, et à 0 il éteint automatiquement le poste.
-
----
-
-## Structure du projet
-
-```
+```text
 .
-├── authentification/            # Serveur Django (API REST)
-│   ├── authentification/        # Settings, config Celery, urls racine
+├── authentification/                 # Serveur Django / API REST
+│   ├── authentification/
 │   │   ├── settings.py
 │   │   ├── celery.py
 │   │   └── urls.py
-│   ├── compte/                  # App principale
-│   │   ├── models.py            # User, Session_activite, Application, Bad_action
-│   │   ├── views.py / urls.py   # Endpoints DRF
-│   │   ├── serializers.py       # Déclenche la tâche Celery à la création d'une Application
-│   │   ├── tasks.py             # Tâche Celery verifier_activite
-│   │   └── analyseur.py         # Pipeline de classification IA
+│   │
+│   ├── compte/
+│   │   ├── models.py
+│   │   ├── views.py
+│   │   ├── urls.py
+│   │   ├── serializers.py
+│   │   ├── tasks.py
+│   │   └── analyseur.py
+│   │
 │   ├── requirements.txt
 │   └── manage.py
-├── client/                      # Application de poste (CustomTkinter)
-│   ├── main_v2.py                # Version actuelle : login/inscription API + tracking + score
-│   ├── main_v1.py                 # Ancienne version (v1.0), dépréciée — voir en bas
-│   ├── application_active.py     # Détection de la fenêtre active (win32gui/psutil)
-│   ├── analyseur_version_api.py  # Variante du pipeline d'analyse appelant Ollama en HTTP direct
+│
+├── client/                          # Application installée sur les postes
+│   ├── main_v2.py                   # Client actuel
+│   ├── main_v1.py                   # Ancienne implémentation directe MySQL
+│   ├── application_active.py        # Détection de la fenêtre active
+│   ├── analyseur_version_api.py
 │   └── tache_repetitif.py
-├── piracy.txt                    # Blocklist de domaines streaming/piraterie utilisée par analyseur.py
-├── conception.md                 # Notes de conception
-└── analyseur.py, keyloger.py, ollama_webuse.py, ...  # scripts d'expérimentation à la racine
+│
+├── piracy.txt                       # Blocklist
+├── conception.md                    # Notes de conception
+└── autres scripts d'expérimentation
 ```
 
----
-
-## Fonctionnalités (v2)
-
-- Inscription en plusieurs étapes, avec capture de photo de profil directement via la webcam (OpenCV), intégrée dans la même fenêtre. La photo n'est jamais écrite sur disque : elle est gardée en mémoire puis encodée en base64 à l'envoi.
-- Connexion par JWT (access/refresh), avec rafraîchissement automatique du token toutes les 25 minutes.
-- Suivi automatique de l'application/fenêtre active, posté au serveur toutes les 20 secondes.
-- Score de moralité : chaque utilisateur démarre à 20 points ; chaque activité jugée "mauvaise" par le pipeline IA en retire 2. Le client vérifie le score chaque minute, avertit l'utilisateur à 10, et éteint automatiquement le poste si le score atteint 0.
-- Documentation d'API générée automatiquement (drf-spectacular) : Swagger sur `/api/docs/`, Redoc sur `/api/redoc/`, schéma OpenAPI sur `/api/schema/`.
+`main_v1.py` peut être conservé dans le dépôt comme référence historique, mais il n'est plus nécessaire de documenter son fonctionnement séparément dans ce README : ses principes sont repris dans la V2.
 
 ---
 
-## Technologies utilisées
+# 7. Technologies utilisées
 
-### Serveur (`authentification/`)
-- Python 3.x, Django, Django REST Framework
-- `djangorestframework-simplejwt` (authentification par JWT)
-- `drf-spectacular` (documentation API auto-générée)
-- `drf-extra-fields` (upload de photo de profil en base64)
-- MySQL (`mysqlclient` / `mysql-connector-python`)
-- **Celery** + **Redis** (broker et result backend) pour le traitement asynchrone des activités
-- **Ollama**, avec les modèles `qwen2.5:1.5b` (classification générative) et `bge-m3` (embeddings)
-- `python-dotenv` (variables d'environnement)
-
-### Client (`client/`)
-- Python 3.x, CustomTkinter, Tkinter
-- `requests` (appels à l'API REST)
-- `APScheduler` (rafraîchissement de token, envoi périodique de l'activité, vérification du score)
-- OpenCV (`cv2`) pour la capture webcam intégrée
-- Pillow (traitement d'image)
-- `pywin32` / `psutil` (détection de la fenêtre active, spécifique Windows)
-
-> ⚠️ **À propos de `authentification/requirements.txt`** : ce fichier date encore de la v1 et ne liste pas certaines dépendances utilisées par le code actuel du serveur, notamment `celery`, `redis` et `drf-extra-fields`. En attendant sa mise à jour, installez-les manuellement (voir ci-dessous). Le fichier mélange par ailleurs des dépendances client (customtkinter, pywin32...) et serveur, à séparer idéalement en deux fichiers distincts.
-
----
-
-## Installation
-
-### 1. Prérequis
+## Client
 
 - Python 3.x
-- Un serveur MySQL accessible
-- Un serveur **Redis** (broker Celery)
-- **Ollama** installé, avec les modèles téléchargés :
+- CustomTkinter
+- Tkinter
+- Requests
+- APScheduler
+- OpenCV (`cv2`)
+- Pillow
+- PyWin32
+- Psutil
 
-```bash
-ollama pull qwen2.5:1.5b
-ollama pull bge-m3
+## Serveur
+
+- Python 3.x
+- Django
+- Django REST Framework
+- `djangorestframework-simplejwt`
+- `drf-spectacular`
+- `drf-extra-fields`
+- MySQL
+- Celery
+- Redis
+- Ollama
+- `python-dotenv`
+
+## Déploiement
+
+- Auto Py To Exe pour générer le `.exe`
+- Windows
+- Registre Windows / GPO pour le lancement automatique
+
+---
+
+# 8. Base de données
+
+La base de données utilisée par le serveur est **MySQL**.
+
+Dans la V1, le client accédait directement à cette base.
+
+Dans la V2 :
+
+```text
+Client
+   │
+   │ HTTP
+   ▼
+Django REST API
+   │
+   │ ORM / connexion DB
+   ▼
+MySQL
 ```
 
-### 2. Serveur (`authentification/`)
+Cette architecture permet de centraliser la logique d'accès aux données sur le serveur et d'éviter de distribuer les identifiants MySQL sur les postes clients.
 
-```bash
-cd authentification
-python -m venv venv
-venv\Scripts\activate        # ou : source venv/bin/activate
-pip install -r requirements.txt
-pip install celery redis drf-extra-fields   # dépendances manquantes du requirements.txt actuel
-```
+La configuration de la base est effectuée côté serveur, notamment avec les variables d'environnement :
 
-Créer un fichier `.env` à la racine de `authentification/` avec au minimum :
-
-```
+```env
 SECRET_KEY=...
 DB_NAME=...
 DB_USER=...
@@ -433,176 +287,318 @@ DB_PASSWORD=...
 DB_PORT=3306
 ```
 
-L'hôte MySQL est actuellement résolu via le nom réseau `CIA-008` (voir `settings.py`) ; à adapter si votre serveur MySQL a un autre nom ou une IP fixe.
+L'hôte MySQL peut être configuré selon l'environnement de déploiement.
 
-Copier `piracy.txt` (situé à la racine du dépôt) dans le répertoire d'où le serveur est lancé (`authentification/`), car `compte/analyseur.py` le charge par un chemin relatif.
+---
 
-Appliquer les migrations et lancer le serveur :
+# 9. Installation
+
+## 9.1 Prérequis
+
+Installer :
+
+- Python 3.x ;
+- MySQL ;
+- Redis ;
+- Ollama.
+
+Télécharger les modèles Ollama :
+
+```bash
+ollama pull qwen2.5:1.5b
+ollama pull bge-m3
+```
+
+---
+
+## 9.2 Installation du serveur
+
+```bash
+cd authentification
+python -m venv venv
+```
+
+Sous Windows :
+
+```bash
+venv\Scripts\activate
+```
+
+Sous Linux/macOS :
+
+```bash
+source venv/bin/activate
+```
+
+Installer les dépendances :
+
+```bash
+pip install -r requirements.txt
+```
+
+Si elles ne sont pas encore présentes dans `requirements.txt` :
+
+```bash
+pip install celery redis drf-extra-fields
+```
+
+Créer le fichier `.env` :
+
+```env
+SECRET_KEY=...
+DB_NAME=...
+DB_USER=...
+DB_PASSWORD=...
+DB_PORT=3306
+```
+
+Appliquer les migrations :
 
 ```bash
 python manage.py migrate
+```
+
+Lancer Django :
+
+```bash
 python manage.py runserver
 ```
 
-Dans un second terminal, lancer Redis s'il n'est pas déjà en service :
+---
+
+## 9.3 Lancer Redis
+
+Dans un autre terminal :
 
 ```bash
 redis-server
 ```
 
-Dans un troisième terminal, lancer un worker Celery (depuis `authentification/`) :
+---
+
+## 9.4 Lancer Celery
+
+Depuis `authentification/` :
 
 ```bash
 celery -A authentification worker --loglevel=info -P solo
 ```
 
-(l'option `-P solo` est recommandée sous Windows ; sous Linux/Mac, le pool par défaut convient.)
+L'option `-P solo` est recommandée sous Windows.
 
-La documentation interactive de l'API est ensuite disponible sur `http://127.0.0.1:8000/api/docs/`.
+---
 
-### 3. Client (`client/`)
+## 9.5 Documentation de l'API
+
+Une fois Django lancé :
+
+- Swagger : `/api/docs/`
+- Redoc : `/api/redoc/`
+- Schéma OpenAPI : `/api/schema/`
+
+Avec le serveur local :
+
+```text
+http://127.0.0.1:8000/api/docs/
+```
+
+---
+
+# 10. Installation du client
+
+Depuis le dossier `client/` :
 
 ```bash
-cd client
 pip install customtkinter requests pillow opencv-python apscheduler pywin32 psutil
+```
+
+Lancer :
+
+```bash
 python main_v2.py
 ```
 
-L'URL de l'API pour la connexion/inscription est configurable dans l'interface (valeur par défaut : `http://127.0.0.1:8000/api/`). En revanche, l'URL utilisée par le suivi en tâche de fond (envoi de l'activité, vérification du score, rafraîchissement du token — classe `Coeur`) est actuellement codée en dur sur `http://127.0.0.1:8000` dans `main_v2.py` ; à externaliser en configuration pour un déploiement multi-poste.
+L'URL de l'API utilisée pour l'inscription et la connexion peut être configurée dans l'interface.
+
+Pour un déploiement sur plusieurs postes, il est recommandé de centraliser cette URL dans une configuration plutôt que de la coder directement dans le programme.
 
 ---
 
-## Notes / limitations connues
+# 11. Authentification
 
-- `requirements.txt` du serveur n'est pas encore aligné avec le code (voir avertissement ci-dessus).
-- L'URL de l'API utilisée par le tracking en arrière-plan est codée en dur dans `main_v2.py`.
-- `piracy.txt` doit être copié dans le dossier d'exécution du serveur (chemin relatif dans `analyseur.py`).
-- `main_v1.py` et sa documentation ci-dessous sont conservés pour mémoire mais ne reflètent plus le fonctionnement actuel du système.
+La V2 utilise une authentification **JWT**.
+
+Le client obtient :
+
+- un `access_token` ;
+- un `refresh_token`.
+
+L'`access_token` est utilisé pour authentifier les requêtes envoyées à l'API.
+
+Le `refresh_token` permet d'obtenir un nouveau token lorsque l'ancien expire.
+
+Le client effectue automatiquement le rafraîchissement périodique du token.
 
 ---
 
-## Version 1.0 (historique — dépréciée)
+# 12. Génération du fichier EXE
 
-Cette section documente `main_v1.py`, l'ancienne version du client, qui n'est plus utilisée en production : elle écrit directement dans une base MySQL locale, sans passer par l'API, Celery, Redis ni l'IA.
-
-# Authentification CAEB - Système d'inscription (v1)
-
-## Description
-
-**Authentification CAEB v1** est une application graphique développée en Python avec **CustomTkinter** permettant d'enregistrer les utilisateurs lors de leur première utilisation sur un poste informatique.
-
-L'application :
-
-- affiche une interface d'inscription plein écran ;
-- demande le nom et le prénom de l'utilisateur ;
-- effectue une validation des champs saisis ;
-- récupère automatiquement le nom du poste informatique ;
-- enregistre les informations dans une base de données MySQL distante ;
-- peut être configurée pour se lancer automatiquement au démarrage de Windows.
-
-### Technologies utilisées (v1)
-
-- Python 3.x
-- CustomTkinter
-- Tkinter
-- MySQL Connector
-- MySQL Server
-- Auto Py To Exe (conversion en fichier `.exe`)
-
-### Installation des dépendances (v1)
+Pour générer l'exécutable Windows :
 
 ```bash
-pip install customtkinter mysql-connector-python
+pip install auto-py-to-exe
 ```
 
-### Configuration de la base de données MySQL (v1)
+Puis :
 
-L'application nécessite une base de données MySQL appelée `authentification`, avec la table :
-
-```sql
-CREATE TABLE users (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    nom VARCHAR(100),
-    prenom VARCHAR(100),
-    date DATETIME,
-    nom_pc VARCHAR(100)
-);
+```bash
+auto-py-to-exe
 ```
 
-Le compte MySQL utilisé par l'application doit avoir les droits d'insertion :
+Configurer :
 
-```
-Utilisateur : inscription
-Mot de passe : ******
-Base : authentification
-```
+- **Script Location** : `main_v2.py`
+- **One File** : activé
+- **Window Based** : activé
+- ajouter l'icône si nécessaire.
 
-Le serveur MySQL doit être accessible depuis les postes clients.
+Puis cliquer sur :
 
-### Configuration réseau (v1)
-
-Dans le script, l'adresse IP du serveur MySQL est récupérée grâce au nom réseau :
-
-```python
-adresse_ip = socket.gethostbyname('CIA-008')
+```text
+Convert .py to .exe
 ```
 
-Le poste serveur doit donc être accessible avec le nom `CIA-008`, ou cette ligne doit être modifiée avec l'adresse IP fixe du serveur, par exemple :
+Le fichier `.exe` peut ensuite être déployé sur les postes clients.
 
-```python
-adresse_ip = "192.168.1.10"
-```
+---
 
-### Génération du fichier EXE (v1)
+# 13. Lancement automatique de l'application
 
-Pour générer un exécutable Windows :
+Pour lancer automatiquement l'application au démarrage de Windows, une entrée peut être ajoutée dans :
 
-1. Installer Auto Py To Exe : `pip install auto-py-to-exe`
-2. Lancer : `auto-py-to-exe`
-3. Choisir :
-   - **Script Location** : le fichier Python principal.
-   - **One File** : activé.
-   - **Window Based** : activé (pas de console).
-   - Ajouter les icônes si nécessaire.
-4. Cliquer sur **Convert .py to .exe**.
-
-Le fichier `.exe` généré pourra être déployé sur les postes utilisateurs.
-
-### Exécution automatique au démarrage Windows (v1)
-
-Pour permettre au programme de se lancer automatiquement au démarrage du PC, il faut ajouter une entrée dans le registre Windows.
-
-Ouvrir `regedit`, puis aller dans :
-
-```
+```text
 HKEY_LOCAL_MACHINE
- └── SOFTWARE
-     └── Microsoft
-         └── Windows
-             └── CurrentVersion
-                 └── Run
+└── SOFTWARE
+    └── Microsoft
+        └── Windows
+            └── CurrentVersion
+                └── Run
 ```
 
-Créer une nouvelle valeur chaîne nommée `AuthentificationCAEB`, avec pour données le chemin de l'exécutable, par exemple :
+Créer une valeur chaîne :
 
+```text
+AuthentificationCAEB
 ```
+
+et lui attribuer le chemin de l'exécutable :
+
+```text
 "C:\Program Files\CAEB\AuthCAEB.exe"
 ```
 
-À chaque démarrage de Windows, le système consulte cette clé, détecte `AuthentificationCAEB` et exécute automatiquement `AuthCAEB.exe`. L'application apparaît alors directement sur l'écran d'inscription.
+La modification de `HKEY_LOCAL_MACHINE` nécessite des droits administrateur.
 
-La modification de `HKEY_LOCAL_MACHINE` nécessite des droits administrateur. Lors du déploiement sur plusieurs machines, il est recommandé d'effectuer cette étape via un script d'installation, une stratégie de groupe Windows (GPO), ou un outil de déploiement centralisé.
+Pour un déploiement sur plusieurs machines, cette configuration peut être automatisée avec :
 
-### Raccourcis de fermeture (v1)
-
-L'application bloque volontairement plusieurs raccourcis Windows : `Alt + F4`, `Ctrl + W`, `Ctrl + Q`, `Échap`. Une sortie administrateur est disponible avec `Ctrl + Shift + B`.
-
+- un script d'installation ;
+- une stratégie de groupe Windows (GPO) ;
+- un outil de déploiement centralisé.
 
 ---
 
+# 14. Raccourcis de fermeture
 
+L'application bloque volontairement :
 
+- `Alt + F4`
+- `Ctrl + W`
+- `Ctrl + Q`
+- `Échap`
+
+Une sortie administrateur est disponible avec :
+
+```text
+Ctrl + Shift + B
+```
+
+---
+
+# 15. Différences entre V1 et V2
+
+| Élément | V1 | V2 |
+|---|---|---|
+| Interface client | CustomTkinter | CustomTkinter |
+| Inscription | Oui | Oui |
+| Nom du PC | Oui | Oui |
+| Lancement Windows | Oui | Oui |
+| Génération `.exe` | Oui | Oui |
+| Accès MySQL depuis le client | **Direct** | **Non** |
+| API Django | Non | **Oui** |
+| Authentification JWT | Non | **Oui** |
+| Suivi des activités | Non | **Oui** |
+| Celery | Non | **Oui** |
+| Redis | Non | **Oui** |
+| Analyse IA | Non | **Oui** |
+| Score utilisateur | Non | **Oui** |
+| `Bad_action` | Non | **Oui** |
+
+La V2 doit donc être considérée comme **l'évolution de la V1**, et non comme une application entièrement différente.
+
+La modification architecturale principale est le passage :
+
+```text
+V1 : Client → MySQL
+```
+
+à :
+
+```text
+V2 : Client → API Django → MySQL
+```
+
+La V2 ajoute ensuite toute la partie **tracking + score + analyse IA** autour de cette architecture.
+
+---
+
+# 16. Limitations connues
+
+- `requirements.txt` du serveur doit être maintenu à jour avec toutes les dépendances réellement utilisées.
+- L'URL de l'API ne devrait pas être codée en dur dans le client.
+- `piracy.txt` doit être disponible à l'emplacement attendu par `analyseur.py`.
+- Le déploiement multi-poste nécessite une configuration réseau correcte entre les clients et le serveur Django.
+- Le serveur Django doit pouvoir accéder à MySQL.
+- Celery doit pouvoir communiquer avec Redis.
+- Ollama et les modèles nécessaires doivent être disponibles sur la machine qui effectue l'analyse.
+
+---
+
+# 17. Résumé
+
+Le système a commencé avec une architecture simple :
+
+```text
+Poste client
+    │
+    └──► MySQL
+```
+
+La V2 conserve les bases du client et de son déploiement, mais introduit une architecture serveur :
+
+```text
+                    ┌──► MySQL
+                    │
+Poste client ──► API Django
+                    │
+                    └──► Celery ──► Redis
+                              │
+                              └──► Ollama / IA
+```
+
+Cette séparation permet de centraliser l'accès aux données, l'authentification, le suivi des activités et l'analyse des comportements côté serveur.
+
+---
 
 # Auteur
 
-Projet développé pour le système d'inscription CAEB.
+Projet développé pour le système d'inscription et de suivi CAEB.
