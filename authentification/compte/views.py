@@ -3,7 +3,7 @@ from django.http import HttpResponse,JsonResponse
 from django.contrib.auth import get_user_model 
 from rest_framework import viewsets 
 from rest_framework.permissions import IsAuthenticated,IsAdminUser
-from .serializers import UserSerializer,SessionActiviteSerializer,BadActionSerializer,ApplicationSerializer,RegisterSerializer,ActivationCompteSerializer
+from .serializers import UserSerializer,SessionActiviteSerializer,BadActionSerializer,ApplicationSerializer,RegisterSerializer,ActivationCompteSerializer,ProfilSerializer
 #Import des classes du sérializers 
 from .models import Session_activite,Application,Bad_action 
 from rest_framework import generics 
@@ -41,7 +41,24 @@ class RegisterApiView(generics.CreateAPIView):
     """Inscription d'un nouvel utilisateur """
     serializer_class = RegisterSerializer
      
+class ProfilApiView(generics.RetrieveAPIView):
+    serializer_class = ProfilSerializer 
+    queryset = User.objects.all()
+    def get_object(self):
+        try:
+            valeur = self.kwargs["valeur"]
+        except :
+            return self.request.user 
+        
+        utilisateur = User.objects.filter(
+            Q(username=valeur) |
+            Q(matricule=valeur) |
+            Q(telephone=valeur) |
+            Q(email=valeur)
+        ).first()
 
+        return utilisateur 
+    
 
 #En fait, on a juste besoin de créer une vue pour l'inscription 
 #Parce que jwt gère déjà l'accès au token
@@ -78,6 +95,7 @@ class ApplicationModelView(viewsets.ModelViewSet):
 class Bad_actionModelView(viewsets.ModelViewSet):
     
     serializer_class = BadActionSerializer
+
     def get_queryset(self):
         return Bad_action.objects.filter(application__session__user=self.request.user)
     
@@ -96,6 +114,9 @@ class Bad_actionModelView(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
 
+def listebadaction(request,token):
+    """Cette vue nous permet d'avoir la liste des badactions d'un utilisateur """
+    
 
 #Construction des api pour checker si les identifiants uniques n'existent pas déjà (username,email,telephone)
 class CheckUsernameApiView(APIView):
@@ -167,7 +188,10 @@ class ValiderInscriptionApiView(APIView):
             )
 
 def dash(request):
-    return render(request,'pending.html')
+    if request.user.is_superuser:
+        return render(request,'pending.html')
+    else:
+        return HttpResponse("Vous n'êtes pas un administrateur imposteur ")
 
 
 
@@ -176,3 +200,11 @@ def dash(request):
 
 def ma_vue(request):
     return render(request,'test.html')
+
+
+def profil(request,valeur):
+    return render(request,'profil.html')
+
+def extinction(request):
+    """une vue pour montrer que l'ordinateur va s'éteindre """
+    return render(request,'extinction.html')

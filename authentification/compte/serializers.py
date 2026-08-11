@@ -38,6 +38,12 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ['id','username','email','matricule','photo_de_profil','telephone','sexe','score','created_at','updated_at','first_name','last_name','activation_code']
         read_only_fields = ['id','created_at','updated_at']
 
+#Celui-ci est utilisé uniquement lors de la consultation de son profil
+class ProfilSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User 
+        fields = ["username",'email','telephone','photo_de_profil','sexe','first_name','last_name','score','matricule']
+       
 
 #Celui-ci est utilisé uniquement lors de l'inscription.
 class RegisterSerializer(serializers.ModelSerializer):
@@ -126,6 +132,7 @@ class BadActionSerializer(serializers.ModelSerializer):
         model = Bad_action
         fields = ["id",'application','titre',"text_input",'justification','created_at']
         read_only_fields = ["created_at",'id']
+        
     def create(self,validated_data):
         action = Bad_action.objects.filter(application=validated_data.get('application'),titre=validated_data.get('titre'),text_input=validated_data.get('text_input')).first()
         if action is not None:
@@ -133,7 +140,7 @@ class BadActionSerializer(serializers.ModelSerializer):
         else:
             action = Bad_action.objects.create(**validated_data)
             user = action.application.session.user 
-            user.score  = F('score') - 2
+            user.score  = F('score') - 2 
 
         user = action.application.session.user 
         session = action.application.session

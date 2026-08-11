@@ -46,6 +46,8 @@ urlpatterns = [
     # Alternative : Interface Redoc
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
     path('dash/',views.dash,name='dash'),
-    path('test/',views.ma_vue)
+    path('test/',views.ma_vue),
+    path('profil/<str:valeur>/',views.profil,),
+    path('extinction/',views.extinction)
 ]
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
