@@ -293,11 +293,11 @@ Pour un environnement professionnel :
 ---
 
 
-#Version 2.0
+# Version 2.0
 
 # Authentification-tracking-system-for-pc
 
-Pour l'authentification des utilisateurs sur les ordinateurs d'un cyber, avec suivi automatique boosté à l'IA et attribution de scores aux utilisateurs (système de points façon permis de conduire).
+
 
 Le projet est composé de deux parties :
 
