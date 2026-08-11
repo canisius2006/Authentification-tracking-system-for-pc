@@ -30,8 +30,8 @@ def application_active():
 
 
     return str(json.dumps({
-        "application": application,#.replace("'",""),
-        "titre": titre#.replace("'","")
+        "application": application,
+        "titre": titre
     }))
 
 
