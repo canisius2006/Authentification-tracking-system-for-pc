@@ -57,10 +57,10 @@ def verifier_activite(application_id, activite):
             }
         )
 
-        # 5. Si une nouvelle Bad_action a été créée, on retire 2 points au score de l'utilisateur
+        # 5. Si une nouvelle Bad_action a été créée, on retire 1 points au score de l'utilisateur
         if created:
             user = application.session.user
-            user.score = F('score') - 2
+            user.score = F('score') - 1
             user.save(update_fields=['score'])
             print("Created and i substracted the user's score")
 
