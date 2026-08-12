@@ -15,8 +15,8 @@ def verifier_activite(application_id, activite):
     si l'analyseur indique que l'activité est mauvaise.
     """
     
-    print(activite)
-    print(type(activite))
+    #print(activite)
+    #print(type(activite))
 
     if isinstance(activite,str):
         print("ce n'est pas un dict")
@@ -35,7 +35,7 @@ def verifier_activite(application_id, activite):
     # 2. Analyser l'activité
     resultat = dict(analyser_activite(activite))
 
-    print(resultat)
+    #print(resultat)
 
     # 3. L'activité n'est pas mauvaise => rien à créer
     if resultat.get("mauvais") is not True:
