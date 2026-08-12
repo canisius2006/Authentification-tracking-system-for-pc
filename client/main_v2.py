@@ -55,7 +55,7 @@ import re
 import application_active 
 from apscheduler.schedulers.background import BackgroundScheduler
 import subprocess
-
+import os,sys 
 from tkinter import messagebox 
 import socket 
 
@@ -1218,7 +1218,8 @@ class RegisterPage(ctk.CTkFrame):
             self.status_label.configure(text="\U000026A0 Votre inscription est toujours en attente de confirmation", text_color=COLORS["danger"])
             messagebox.showinfo('CAEB Authentification',"Rapprochez-vous d'un administrateur si vous voulez  recommencer votre inscription")
             return 
-        self.show_step(0)
+        python = sys.executable
+        os.execv(python, [python] + sys.argv)
 
     def previous_step(self):
         if self.current_step > 0 and not self._request_in_flight and not self._navigating:
