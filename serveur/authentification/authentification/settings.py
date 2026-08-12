@@ -144,7 +144,7 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
     
     # Durée de vie du Refresh Token (ex: 1 jour, 7 jours...)
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     
     # Optionnel : Permet de renouveler le Refresh Token lors d'un rafraîchissement
     'ROTATE_REFRESH_TOKENS': True,
