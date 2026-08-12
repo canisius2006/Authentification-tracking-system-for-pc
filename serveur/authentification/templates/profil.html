@@ -251,7 +251,7 @@
     <footer class="w-full py-4 text-center text-xs text-slate-400 border-t border-slate-200/50 bg-white/40">
         <p>&copy; 2026 Système de Gestion Utilisateur.</p>
     </footer>
-
+    
     <script>
         // L'objet data est initialisé vide. Plus aucune donnée par défaut.
         let currentProfileData = null;
@@ -280,7 +280,7 @@
             const username = getTargetUsername();
             
             // Construction de l'URL exactement comme demandé
-            const apiUrl = `http://192.168.30.2:8000/api/profil/${username}/`;
+            const apiUrl = `http://${window.location.host}/api/profil/${username}/`;
 
             updateApiBadge("fetching");
             hideErrorBanner();

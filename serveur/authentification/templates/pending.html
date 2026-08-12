@@ -521,7 +521,7 @@
         // construits automatiquement à partir de API_BASE_URL. Plus besoin
         // de répéter/mettre à jour l'IP ou le port à plusieurs endroits.
         // ===================================================================
-        let API_BASE_URL = (localStorage.getItem('api_base_url') || 'http://192.168.30.2:8000').replace(/\/+$/, '');
+        let API_BASE_URL = (localStorage.getItem('api_base_url') || `http://${window.location.host}`).replace(/\/+$/, '');
 
         // Chemins relatifs des endpoints (à adapter ici si le backend change ses routes,
         // indépendamment du host/port).

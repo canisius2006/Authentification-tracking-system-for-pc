@@ -19,6 +19,9 @@ from drf_spectacular.utils import extend_schema
 from rest_framework import status 
 from rest_framework_simplejwt.tokens import RefreshToken 
 from .tasks import verifier_activite
+from dotenv import load_dotenv 
+import os,socket
+load_dotenv() 
 
 # Create your views here.
 
@@ -114,9 +117,7 @@ class Bad_actionModelView(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
 
-def listebadaction(request,token):
-    """Cette vue nous permet d'avoir la liste des badactions d'un utilisateur """
-    
+ 
 
 #Construction des api pour checker si les identifiants uniques n'existent pas déjà (username,email,telephone)
 class CheckUsernameApiView(APIView):
