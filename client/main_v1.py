@@ -19,7 +19,7 @@ class App(ctk.CTk):
         self.confirmer.configure(command=self.valider)
         self.bind_all('<Control-Shift-B>',lambda e: self.quit())
         #Maintenant, on supprime les raccourcis pour pouvoir quitter sans s'inscrire 
-        #self.bind('<Alt-F4>',lambda e: "break")
+        self.bind('<Alt-F4>',lambda e: "break")
         self.bind('<Escape>',lambda e: 'break')
         self.bind('<Control-w>',lambda e: 'break')
         self.bind('<Control-q>',lambda e: 'break')

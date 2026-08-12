@@ -65,6 +65,7 @@ class Coeur():
     def __init__(self,access_token,refresh_token):
         self.access_token = access_token 
         self.refresh_token = refresh_token 
+        messagebox.showinfo('Authentification CAEB',"Attention: Cet pc est surveillé")
         threading.Thread(target=self.create_session,daemon=True).start()
 
     def create_session(self):
@@ -235,9 +236,7 @@ class MainApp(ctk.CTk):
         super().__init__()
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
-        self.title("Authentification JWT")
-        self.geometry("1150x860")
-        self.minsize(1000, 700)
+        self.title("Authentification CAEB")
         self.configure(fg_color=COLORS["bg"])
 
         self.api_base_url_var = ctk.StringVar(value=DEFAULT_API_BASE_URL)
@@ -249,6 +248,19 @@ class MainApp(ctk.CTk):
         self._build_pages()
         self.show_page("login")
         self.protocol("WM_DELETE_WINDOW", self._on_close)
+
+        #Définition des attributs pour une implémentation persistance sur l'écran
+        self.geometry(f"{int(self.winfo_screenwidth())}x{int(self.winfo_screenheight())}+0+0") 
+        self.overrideredirect(True)
+        self.attributes("-topmost", True)
+        self.bind_all('<Control-Shift-B>',self._on_close)
+        #Maintenant, on supprime les raccourcis pour pouvoir quitter sans s'inscrire 
+        self.bind('<Alt-F4>',lambda e: "break")
+        self.bind('<Escape>',lambda e: 'break')
+        self.bind('<Control-w>',lambda e: 'break')
+        self.bind('<Control-q>',lambda e: 'break')
+        self.protocol('WM_DELETE_WINDOW',lambda e: None)
+
 
     def _on_close(self):
         """S'assure que la webcam est bien libérée avant de fermer
