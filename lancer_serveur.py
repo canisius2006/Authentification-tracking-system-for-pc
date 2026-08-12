@@ -11,13 +11,16 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-
+pc = socket.gethostname()
 # ============================================================
 # CONFIGURATION
 # ============================================================
 
 # Dossier dans lequel se trouve lancer.py
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+if pc=='CIA-008':
+    BASE_DIR = r"C:\developpement" 
+else:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__)) 
 
 # Environnement virtuel
 VENV_DIR = os.path.join(BASE_DIR, "venv")
