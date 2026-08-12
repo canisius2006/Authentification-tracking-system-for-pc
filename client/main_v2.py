@@ -55,11 +55,10 @@ import re
 import application_active 
 from apscheduler.schedulers.background import BackgroundScheduler
 import subprocess
-import os 
+
 from tkinter import messagebox 
 import socket 
-import os
-import sys
+
 
 #Ici , nous allons définir notre classe coeur qui va se charger du tracking 
 
