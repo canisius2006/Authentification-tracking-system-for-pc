@@ -142,7 +142,7 @@
                 </div>
                 <div style="display:none;">
                     <h4 class="text-xs font-bold text-brand-900 uppercase tracking-wider">Connexion API Backend & Suppression</h4>
-                    <p class="text-xs text-brand-700 mt-0.5" id="current-api-url-display">URL API Liste : <code class="font-mono bg-white px-2 py-0.5 rounded text-brand-900 font-bold border border-brand-200">http://127.0.0.1:8000/api/liste-pending</code> | Endpoint Suppression : <code class="font-mono bg-white px-2 py-0.5 rounded text-red-700 font-bold border border-red-200">/api/users/{id}/</code></p>
+                    <p class="text-xs text-brand-700 mt-0.5" id="current-api-url-display">URL API Liste : <code class="font-mono bg-white px-2 py-0.5 rounded text-brand-900 font-bold border border-brand-200">http://192.168.30.2:8000/api/liste-pending</code> | Endpoint Suppression : <code class="font-mono bg-white px-2 py-0.5 rounded text-red-700 font-bold border border-red-200">/api/users/{id}/</code></p>
                 </div>
             </div>
             <div class="flex items-center gap-2 w-full md:w-auto justify-end">
@@ -320,24 +320,17 @@
 
             <form onsubmit="saveApiConfig(event)" class="p-6 space-y-4">
                 <div>
-                    <label class="block text-xs font-bold uppercase text-slate-500 mb-1">URL de base du serveur (Authentification)</label>
-                    <input type="url" id="auth-base-url-input" required placeholder="http://127.0.0.1:8000"
+                    <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Route principale du serveur (host + port)</label>
+                    <input type="url" id="api-base-url-input" required placeholder="http://192.168.30.2:8000"
                         class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono focus:ring-2 focus:ring-brand-500 focus:outline-none">
-                    <p class="text-[11px] text-slate-400 mt-1">Utilisée pour <code class="font-mono">/api/token/</code> (login) et <code class="font-mono">/api/token/refresh/</code> (renouvellement automatique).</p>
+                    <p class="text-[11px] text-slate-400 mt-1">Une seule adresse à renseigner : tous les endpoints ci-dessous en sont dérivés automatiquement, inutile de la répéter.</p>
                 </div>
 
-                <div>
-                    <label class="block text-xs font-bold uppercase text-slate-500 mb-1">URL Endpoint Liste Pending</label>
-                    <input type="url" id="api-url-input" required placeholder="http://127.0.0.1:8000/api/liste-pending"
-                        class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono focus:ring-2 focus:ring-brand-500 focus:outline-none">
-                    <p class="text-[11px] text-slate-400 mt-1">L'API GET doit retourner un tableau d'objets JSON d'utilisateurs.</p>
-                </div>
-
-                <div>
-                    <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Modèle d'URL Endpoint Suppression (DELETE)</label>
-                    <input type="text" id="api-delete-url-input" required placeholder="http://127.0.0.1:8000/api/users/{id}/"
-                        class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono focus:ring-2 focus:ring-brand-500 focus:outline-none">
-                    <p class="text-[11px] text-slate-400 mt-1">Conservez le tag <code class="font-bold font-mono">{id}</code> qui sera remplacé dynamiquement lors de la requête DELETE.</p>
+                <div class="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5 text-[11px] font-mono text-slate-600">
+                    <p><span class="font-bold text-slate-500 uppercase text-[10px] font-sans">Liste pending :</span> <code id="route-preview-list">/api/liste-pending</code></p>
+                    <p><span class="font-bold text-slate-500 uppercase text-[10px] font-sans">Suppression :</span> <code id="route-preview-delete">/api/users/{id}/</code></p>
+                    <p><span class="font-bold text-slate-500 uppercase text-[10px] font-sans">Login :</span> <code id="route-preview-token">/api/token/</code></p>
+                    <p><span class="font-bold text-slate-500 uppercase text-[10px] font-sans">Refresh token :</span> <code id="route-preview-refresh">/api/token/refresh/</code></p>
                 </div>
 
                 <p class="text-[11px] text-slate-400">L'authentification se fait désormais via la connexion (login) — le token d'accès est géré et renouvelé automatiquement.</p>
@@ -520,15 +513,38 @@
 
     <!-- JavaScript Logic & API Integration -->
     <script>
-        // API Endpoint Configuration State (liste + suppression)
+        // ===================================================================
+        // CONFIGURATION CENTRALISÉE DE L'API
+        // ---------------------------------------------------------------
+        // Une seule "route principale" (host + port) à modifier : tous les
+        // endpoints ci-dessous (ROUTES) sont de simples chemins relatifs,
+        // construits automatiquement à partir de API_BASE_URL. Plus besoin
+        // de répéter/mettre à jour l'IP ou le port à plusieurs endroits.
+        // ===================================================================
+        let API_BASE_URL = (localStorage.getItem('api_base_url') || 'http://192.168.30.2:8000').replace(/\/+$/, '');
+
+        // Chemins relatifs des endpoints (à adapter ici si le backend change ses routes,
+        // indépendamment du host/port).
+        const ROUTES = {
+            list: '/api/liste-pending',
+            userDelete: '/api/users/{id}/',
+            tokenObtain: '/api/token/',
+            tokenRefresh: '/api/token/refresh/'
+        };
+
+        // Construit une URL absolue à partir d'un chemin relatif et de API_BASE_URL
+        function buildApiUrl(path) {
+            return `${API_BASE_URL}${path.startsWith('/') ? path : '/' + path}`;
+        }
+
+        // API Endpoint Configuration State (liste + suppression) — dérivé de API_BASE_URL
         let API_CONFIG = {
-            url: localStorage.getItem('pending_api_url') || 'http://127.0.0.1:8000/api/liste-pending',
-            deleteUrlPattern: localStorage.getItem('pending_api_delete_url') || 'http://127.0.0.1:8000/api/users/{id}/'
+            url: buildApiUrl(ROUTES.list),
+            deleteUrlPattern: buildApiUrl(ROUTES.userDelete)
         };
 
         // Authentication State (JWT access + refresh tokens)
         let AUTH_CONFIG = {
-            baseUrl: localStorage.getItem('auth_base_url') || 'http://127.0.0.1:8000',
             accessToken: localStorage.getItem('access_token') || '',
             refreshToken: localStorage.getItem('refresh_token') || '',
             username: localStorage.getItem('auth_username') || ''
@@ -550,10 +566,9 @@
         let userToDelete = null;
 
         window.onload = function() {
-            // Load saved config into settings inputs
-            document.getElementById('auth-base-url-input').value = AUTH_CONFIG.baseUrl;
-            document.getElementById('api-url-input').value = API_CONFIG.url;
-            document.getElementById('api-delete-url-input').value = API_CONFIG.deleteUrlPattern;
+
+            // Load saved config into settings input (une seule route principale)
+            document.getElementById('api-base-url-input').value = API_BASE_URL;
             document.getElementById('auto-refresh-interval').value = autoRefreshInterval;
 
             updateApiUrlDisplay();
@@ -616,7 +631,7 @@
             text.innerText = "Connexion en cours...";
 
             try {
-                const resp = await fetch(`${AUTH_CONFIG.baseUrl.replace(/\/$/, '')}/api/token/`, {
+                const resp = await fetch(buildApiUrl(ROUTES.tokenObtain), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, password })
@@ -721,7 +736,7 @@
             if (!AUTH_CONFIG.refreshToken) return false;
 
             try {
-                const resp = await fetch(`${AUTH_CONFIG.baseUrl.replace(/\/$/, '')}/api/token/refresh/`, {
+                const resp = await fetch(buildApiUrl(ROUTES.tokenRefresh), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ refresh: AUTH_CONFIG.refreshToken })
@@ -802,12 +817,31 @@
                 icon.classList.remove('text-slate-400');
                 icon.classList.add('text-brand-600');
                 showToast("Rafraîchissement automatique activé", "info");
+
+                // Avant, la réactivation se contentait de repositionner le drapeau
+                // "autoRefreshEnabled" et laissait le compte à rebours reprendre là où
+                // il s'était figé pendant la pause : rien ne se passait visiblement
+                // avant la fin de l'intervalle complet, ce qui donnait l'impression
+                // que le rafraîchissement était cassé. On relance maintenant le moteur
+                // proprement (minuteur remis à zéro) ET on déclenche un fetch immédiat
+                // si aucune requête n'est déjà en cours et que l'utilisateur est connecté.
+                startAutoRefreshEngine();
+                if (!isFetching && AUTH_CONFIG.accessToken) {
+                    fetchPendingUsersFromAPI(true);
+                }
             } else {
                 badge.className = "px-2.5 py-1 text-[11px] font-bold text-slate-600 bg-slate-200 rounded-lg flex items-center gap-1.5 border border-slate-300";
                 badge.innerHTML = `<i class="fa-solid fa-circle text-[8px]"></i> Auto-Sync Désactivé`;
                 icon.classList.remove('text-brand-600');
                 icon.classList.add('text-slate-400');
                 showToast("Rafraîchissement automatique en pause", "warning");
+
+                // On arrête complètement le minuteur pendant la pause au lieu de le
+                // laisser tourner "à vide" en arrière-plan.
+                if (autoRefreshTimer) {
+                    clearInterval(autoRefreshTimer);
+                    autoRefreshTimer = null;
+                }
             }
         }
 
@@ -939,13 +973,19 @@
             document.getElementById('delete-btn-icon').className = "fa-solid fa-trash-can";
 
             document.getElementById('delete-confirm-modal').classList.remove('hidden');
+            
         }
 
         function triggerDeleteFromModal() {
-            if (activeModalUser) {
-                closeUserModal();
-                openDeleteConfirmationModal(activeModalUser);
-            }
+            // BUG corrigé : closeUserModal() remet activeModalUser à null.
+            // Avant, on appelait closeUserModal() PUIS on lisait activeModalUser,
+            // qui valait donc déjà null -> openDeleteConfirmationModal(null) ne faisait
+            // rien, donc le clic sur "Supprimer cet utilisateur" dans la fiche agrandie
+            // ne déclenchait jamais la modale de confirmation.
+            if (!activeModalUser) return;
+            const userToTarget = activeModalUser;
+            closeUserModal();
+            openDeleteConfirmationModal(userToTarget);
         }
 
         function closeDeleteModal() {
@@ -996,28 +1036,35 @@
                     throw new Error(`Échec de la suppression (Code HTTP ${response.status})`);
                 }
 
-                // Success local cleanup
+                // Succès confirmé par le serveur : mise à jour locale immédiate...
                 pendingUsers = pendingUsers.filter(u => u.id !== targetId);
                 applyFilters();
 
                 showToast(`Utilisateur #${targetId} supprimé avec succès`, "success");
                 closeDeleteModal();
 
+                // ...puis resynchronisation silencieuse avec le serveur pour être certain
+                // que l'interface reflète exactement l'état réel du backend.
+                fetchPendingUsersFromAPI(true);
+
             } catch (error) {
                 console.error("API Delete Error:", error);
 
-                // Offline fallback handling if testing locally
-                if (error.message.includes('Failed to fetch') || error.message.includes('HTTP')) {
-                    showToast(`API non joignable. Suppression locale effectuée (Test).`, "warning");
-                    pendingUsers = pendingUsers.filter(u => u.id !== targetId);
-                    applyFilters();
-                    closeDeleteModal();
-                } else {
-                    showToast(`Erreur : ${error.message}`, "warning");
-                    deleteBtn.disabled = false;
-                    deleteIcon.className = "fa-solid fa-trash-can";
-                    deleteText.innerText = "Supprimer";
-                }
+                // IMPORTANT : on ne supprime JAMAIS l'utilisateur de la liste locale ici.
+                // Avant, une erreur serveur (403, 404, 500...) ou réseau était silencieusement
+                // traitée comme un succès (suppression "locale seulement"), ce qui affichait
+                // un message de succès trompeur alors que l'utilisateur n'était PAS supprimé
+                // côté serveur. On affiche maintenant une vraie erreur et on garde l'utilisateur
+                // dans la liste, pour rester cohérent avec l'état réel du backend.
+                const isNetworkError = error instanceof TypeError; // ex: "Failed to fetch" (serveur injoignable / CORS)
+                const message = isNetworkError
+                    ? "Impossible de contacter le serveur (réseau/CORS). L'utilisateur n'a pas été supprimé."
+                    : `Échec de la suppression : ${error.message}`;
+
+                showToast(message, "warning");
+                deleteBtn.disabled = false;
+                deleteIcon.className = "fa-solid fa-trash-can";
+                deleteText.innerText = "Supprimer";
             }
         }
 
@@ -1227,13 +1274,16 @@
 
         function saveApiConfig(e) {
             e.preventDefault();
-            AUTH_CONFIG.baseUrl = document.getElementById('auth-base-url-input').value.trim();
-            API_CONFIG.url = document.getElementById('api-url-input').value.trim();
-            API_CONFIG.deleteUrlPattern = document.getElementById('api-delete-url-input').value.trim();
 
-            localStorage.setItem('auth_base_url', AUTH_CONFIG.baseUrl);
-            localStorage.setItem('pending_api_url', API_CONFIG.url);
-            localStorage.setItem('pending_api_delete_url', API_CONFIG.deleteUrlPattern);
+            const newBase = document.getElementById('api-base-url-input').value.trim().replace(/\/+$/, '');
+            if (!newBase) return;
+
+            API_BASE_URL = newBase;
+            localStorage.setItem('api_base_url', API_BASE_URL);
+
+            // Toutes les routes sont régénérées automatiquement à partir de la nouvelle base
+            API_CONFIG.url = buildApiUrl(ROUTES.list);
+            API_CONFIG.deleteUrlPattern = buildApiUrl(ROUTES.userDelete);
 
             updateApiUrlDisplay();
             toggleApiSettingsModal();
@@ -1246,8 +1296,9 @@
         }
 
         function updateApiUrlDisplay() {
-            document.getElementById('current-api-url-display').innerHTML = `URL API Liste : <code class="font-mono bg-white px-2 py-0.5 rounded text-brand-900 font-bold border border-brand-200">${API_CONFIG.url}</code> | Endpoint Suppression : <code class="font-mono bg-white px-2 py-0.5 rounded text-red-700 font-bold border border-red-200">${API_CONFIG.deleteUrlPattern}</code>`;
+            document.getElementById('current-api-url-display').innerHTML = `Route principale : <code class="font-mono bg-white px-2 py-0.5 rounded text-brand-900 font-bold border border-brand-200">${API_BASE_URL}</code> — Liste : <code class="font-mono bg-white px-1.5 py-0.5 rounded text-brand-900 border border-brand-200">${ROUTES.list}</code> · Suppression : <code class="font-mono bg-white px-1.5 py-0.5 rounded text-red-700 border border-red-200">${ROUTES.userDelete}</code>`;
         }
+
 
         function updateStatusBadge(status, text) {
             const dot = document.getElementById('api-status-dot');

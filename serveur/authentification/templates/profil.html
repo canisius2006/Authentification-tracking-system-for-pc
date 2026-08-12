@@ -274,13 +274,13 @@
         }
 
         /**
-         * Appel API principal avec url dynamique http://127.0.0.1:8000/profil/{username}/
+         * Appel API principal avec url dynamique http://192.168.30.2:8000/profil/{username}/
          */
         async function fetchUserProfile() {
             const username = getTargetUsername();
             
             // Construction de l'URL exactement comme demandé
-            const apiUrl = `http://127.0.0.1:8000/api/profil/${username}/`;
+            const apiUrl = `http://192.168.30.2:8000/api/profil/${username}/`;
 
             updateApiBadge("fetching");
             hideErrorBanner();

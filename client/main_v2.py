@@ -57,20 +57,25 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import subprocess
 import os 
 from tkinter import messagebox 
+import socket 
+import os
+import sys
 
 #Ici , nous allons définir notre classe coeur qui va se charger du tracking 
+
+HOST = f"{socket.gethostbyname('CIA-008')}:8000"
 
 class Coeur():
     """C'est le coeur de notre app , la suivie de l'utilisateur """
     def __init__(self,access_token,refresh_token):
         self.access_token = access_token 
         self.refresh_token = refresh_token 
-        messagebox.showinfo('Authentification CAEB',"Attention: Cet pc est surveillé")
+        
         threading.Thread(target=self.create_session,daemon=True).start()
 
     def create_session(self):
         """Cette fonction va nous permettre de pouvoir créer une session quand l'utilisateur se connecte """
-        url = "http://127.0.0.1:8000/api/session/"
+        url = f"http://{HOST}/api/session/"
         response = requests.post(url,headers={'Authorization':f"Bearer {self.access_token}"})
         if response.ok:
             self.session_id = response.json().get('id') #C'est l'id de la session active
@@ -81,12 +86,13 @@ class Coeur():
             self.scheduler.add_job(self.poster_application,'interval',seconds=20)
             self.scheduler.add_job(self.verifier_score,'interval',minutes=1)
             self.scheduler.start()
+            messagebox.showwarning('Authentification CAEB',"Attention: Cet pc est surveillé",icon='warning')
         else:
             exit() 
 
     def obtenir_nouveau_token(self):
         """Cette fonction va nous permettre de pouvoir avoir un nouveau token"""
-        url = "http://127.0.0.1:8000/api/token/refresh/"
+        url = f"http://{HOST}/api/token/refresh/"
         response = requests.post(url,data={'refresh':self.refresh_token})
         self.access_token = response.json().get("access")
         self.refresh_token = response.json().get("refresh")
@@ -95,27 +101,27 @@ class Coeur():
     def poster_application(self):
         """Cette fonction va nous permettre de pouvoir poster l'application active au serveur """
         action = application_active.application_active()
-        url = "http://127.0.0.1:8000/api/application/"
+        url = f"http://{HOST}/api/application/"
         reponse = requests.post(url,data={'session':int(self.session_id),'nom':action},headers={'Authorization':f"Bearer {self.access_token}"})
         
 
     def verifier_score(self):
         """Cette fonction va nous permettre de pouvoir vérifier le score de l'utilisateur en temps réel """
-        url = "http://127.0.0.1:8000/api/profil/"
+        url = f"http://{HOST}/api/profil/"
         data = requests.get(url,headers={'Authorization':f"Bearer {self.access_token}"})
         self.score = data.json().get('score')
         self.username = data.json().get('username')
         if self.score <=0:
-            webbrowser.open(f'http://127.0.0.1:8000/extinction/')
+            webbrowser.open(f'http://{HOST}/extinction/')
             self.eteindre_ordinateur()
         if self.score == 10:
-           messagebox.showinfo(title="CAEB Authentification",message="Votre score de moralité est à 10 \n Faite attention à ce que vous faites sur le pc")
-           webbrowser.open(f'http://127.0.0.1:8000/profil/{self.username}/')
+           messagebox.showwarning(title="CAEB Authentification",message="Votre score de moralité est à 10 \n Faite attention à ce que vous faites sur le pc",icon='warning')
+           webbrowser.open(f'http://{HOST}/profil/{self.username}/')
 
     def eteindre_ordinateur(self):
         subprocess.run(["shutdown", "/s", "/t", "30"])
         
-        messagebox.showinfo(title="CAEB Authentification",message="Votre ordinateur va s'éteindre dans quelques instants (30s)")
+        messagebox.showwarning(title="CAEB Authentification",message="Votre ordinateur va s'éteindre dans quelques instants",icon='warning')
         
         app.mainloop()
 
@@ -124,7 +130,7 @@ class Coeur():
 
 
 
-DEFAULT_API_BASE_URL = "http://127.0.0.1:8000/api/"
+DEFAULT_API_BASE_URL = f"http://{HOST}/api/"
 REGISTER_ENDPOINT = "/inscription"
 LOGIN_ENDPOINT = "/token/"
 CODEVALIDATION_ENDPOINT = "/validation-inscription/"
@@ -253,7 +259,7 @@ class MainApp(ctk.CTk):
         self.geometry(f"{int(self.winfo_screenwidth())}x{int(self.winfo_screenheight())}+0+0") 
         self.overrideredirect(True)
         self.attributes("-topmost", True)
-        self.bind_all('<Control-Shift-B>',self._on_close)
+        self.bind_all('<Control-Shift-B>',lambda e:self._on_close())
         #Maintenant, on supprime les raccourcis pour pouvoir quitter sans s'inscrire 
         self.bind('<Alt-F4>',lambda e: "break")
         self.bind('<Escape>',lambda e: 'break')
@@ -537,7 +543,7 @@ class LoginPage(ctk.CTkFrame):
     def login_callback(self, success, result=None, error=None):
         self._set_loading(False)
         if not success:
-            self.status_label.configure(text="\U0000274C " + self.controller._format_error(error), text_color=COLORS["danger"])
+            self.status_label.configure(text="\U0000274C " + self.controller._format_error(error) + "\n Identifiants incorrects ", text_color=COLORS["danger"])
             return
 
         self.controller.store_tokens(result)
@@ -546,7 +552,7 @@ class LoginPage(ctk.CTkFrame):
         self.status_label.configure(text="\U00002705 Connexion réussie.", text_color=COLORS["success"])
         #self.result_label.configure(text=f"Jeton d'accès : {access}\nJeton de rafraîchissement : {refresh}")
         self.username = self.username_entry.get().strip()
-        webbrowser.open(f'http://127.0.0.1:8000/profil/{self.username}/')
+        webbrowser.open(f'http://{HOST}/profil/{self.username}/')
 
         #Ici, on créer notre classe coeur pour la suite du processus 
         self.begin = Coeur(self.controller.access_token,self.controller.refresh_token)
@@ -651,6 +657,8 @@ class RegisterPage(ctk.CTkFrame):
 
         self.next_button = primary_button(self.navigation_row, "Suivant  \U000027A1", self.next_step, width=220)
         self.next_button.pack(side="left")
+
+        self.reset_button = secondary_button(self.navigation_row, "\U00002B05  Recommencer", self.recommencer, width=190)
 
         ghost_button(
             self.page_scroll, "\U0001F511  Déjà un compte ? Se connecter",
@@ -1157,6 +1165,11 @@ class RegisterPage(ctk.CTkFrame):
 
         if step_index==4:
             self.back_button.pack_forget()
+            self.reset_button.pack(side="left", padx=(0, 14)) 
+
+        if step_index <4:
+            self.reset_button.pack_forget()
+            self.back_button.pack(side="left", padx=(0, 14))
 
         # On remonte en haut de la page à chaque changement d'étape, pour
         # que l'utilisateur voie toujours le début du formulaire (et non
@@ -1200,6 +1213,13 @@ class RegisterPage(ctk.CTkFrame):
             return
 
         self._submit_registration_code()
+    def recommencer(self):
+        """Cette fonction va nous permettre de pouvoir redemarrer le script ainsi que l'inscription pour ceux qui veulent recommencer leurs i"""
+        if not self.checker(self.username_entry.get().strip()):
+            self.status_label.configure(text="\U000026A0 Votre inscription est toujours en attente de confirmation", text_color=COLORS["danger"])
+            messagebox.showinfo('CAEB Authentification',"Rapprochez-vous d'un administrateur si vous voulez  recommencer votre inscription")
+            return 
+        self.show_step(0)
 
     def previous_step(self):
         if self.current_step > 0 and not self._request_in_flight and not self._navigating:
@@ -1229,7 +1249,7 @@ class RegisterPage(ctk.CTkFrame):
         """Cette fonction va nous permettre de pouvoir vérifier si un des identifiants uniques existes déjà """
         if params.strip() is None or params.strip()=='':
             return True
-        url = 'http://127.0.0.1:8000/api/check-user/'
+        url = f'http://{HOST}/api/check-user/'
         data = requests.get(url,params={'user':params})
         data = data.json()
         return data.get('available')
@@ -1349,6 +1369,7 @@ class RegisterPage(ctk.CTkFrame):
 
         self.controller.store_tokens(result)
         self.status_label.configure(text="\U00002705 Inscription Partielle réussie.", text_color=COLORS["pending"])
+        
         #self.result_label.configure(
             #text=(
                 #f"Jeton d'accès : {self.controller.access_token or 'non fourni'}\n"
@@ -1387,7 +1408,7 @@ class RegisterPage(ctk.CTkFrame):
         self.controller.store_tokens(result)
         self.status_label.configure(text="\U00002705 Inscription réussie.", text_color=COLORS["success"])
         self.username = self.username_entry.get().strip()
-        webbrowser.open(f'http://127.0.0.1:8000/profil/{self.username}/')
+        webbrowser.open(f'http://{HOST}/profil/{self.username}/')
         self.begin = Coeur(self.controller.access_token,self.controller.refresh_token)
         self.winfo_toplevel().withdraw()
         # self.result_label.configure(
