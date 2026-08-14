@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Guide d'Utilisation des Postes Informatiques — CAEB NATITINGOU</title>
+  
+  <!-- Chosen Palette: Slate & Warm Amber (Slate-900, Amber-600, Emerald-600, Rose-600, Stone-50 background) -->
+  <!-- Application Structure Plan: Designed as a clean, accessible single-page guide suited for children and adults. Structure includes: (1) Executive Summary Cards, (2) Step-by-Step 4-Stage Session Journey featuring mandatory PC Shutdown, (3) Filterable Do's & Don'ts Matrix (without forbidden fruit triggers), (4) Interactive 20-Point Capital Simulator using Chart.js, (5) How the Activity Tracking System Works (Contextual AI & Blocklists), and (6) Human Appeal Rights & Final Interactive Quiz. -->
+  <!-- Visualization & Content Choices: 
+    1. Session Journey -> 4-step card pipeline with mandatory PC shutdown reminder -> Clear operational flow.
+    2. Do's & Don'ts -> Dynamic category filter -> Focus on educational vs entertainment distinction without mentioning bypassing tools.
+    3. Points Simulator -> Chart.js line plot with a 20-point scale -> Demonstrates -1 point penalties and score restoration upon human appeal.
+    4. Quiz -> JS decision checker -> Validates understanding of rules and final shutdown.
+  -->
+  <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#fafaf9',
+              100: '#f5f5f4',
+              700: '#44403c',
+              800: '#292524',
+              900: '#1c1917',
+            },
+            status: {
+              success: '#10b981',
+              warning: '#f59e0b',
+              danger: '#ef4444',
+              info: '#3b82f6'
+            }
+          },
+          fontFamily: {
+            sans: ['Trebuchet MS', 'Segoe UI', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Chart.js via CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    .chart-container {
+      position: relative;
+      width: 100%;
+      max-width: 540px;
+      height: 250px;
+      max-height: 280px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    @media (min-width: 768px) {
+      .chart-container {
+        height: 270px;
+      }
+    }
+  </style>
+</head>
+<body class="bg-stone-100 text-slate-800 font-sans min-h-screen pb-16 selection:bg-amber-200">
+
+  <!-- Entête Principal / Banner -->
+  <header class="bg-slate-900 text-white py-8 px-4 shadow-md relative overflow-hidden border-b-4 border-amber-500">
+    <div class="max-w-5xl mx-auto text-center space-y-3 relative z-10">
+      <div class="inline-flex items-center gap-2 bg-slate-800 text-amber-400 text-xs sm:text-sm font-bold uppercase tracking-wider px-4 py-1.5 rounded-full border border-slate-700">
+         CAEB NATITINGOU — Postes Informatiques
+      </div>
+      <h1 class="text-2xl sm:text-4xl font-extrabold tracking-tight">
+        Guide d'Utilisation des Ordinateurs
+      </h1>
+      <p class="text-slate-300 text-xs sm:text-base max-w-2xl mx-auto">
+        Un guide clair pour petits et grands : découvrez comment utiliser votre compte, préserver vos <strong>20 points</strong> et bien éteindre votre ordinateur en fin de session.
+      </p>
+
+      <!-- Navigation Rapide -->
+      <nav class="pt-4 flex flex-wrap justify-center gap-2 text-xs sm:text-sm font-semibold">
+        <button onclick="scrollToSection('en-resume')" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg border border-slate-700 transition"> En Résumé</button>
+        <button onclick="scrollToSection('etapes')" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg border border-slate-700 transition">Les 4 Étapes</button>
+        <button onclick="scrollToSection('regles')" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg border border-slate-700 transition">À Faire /  À Éviter</button>
+        <button onclick="scrollToSection('simulateur')" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg border border-slate-700 transition"> Permis 20 Points</button>
+        <button onclick="scrollToSection('droits')" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-3 py-1.5 rounded-lg transition"> Droits & Recours</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-5xl mx-auto px-4 mt-8 space-y-10">
+
+    <!-- SECTION 1 : EN RÉSUMÉ -->
+    <section id="en-resume" class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+      <div class="mb-4">
+        <span class="bg-amber-100 text-amber-900 text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded">L'essentiel</span>
+        <h2 class="text-xl sm:text-2xl font-bold text-slate-900 mt-1">
+           En 1 coup d'œil : Les principes clés
+        </h2>
+        <p class="text-slate-600 text-xs sm:text-sm mt-1">
+          Ce que chaque utilisateur (enfant ou adulte) doit garder en tête avant d'ouvrir sa session.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+         
+          <h3 class="font-bold text-slate-900 text-sm mb-1">1. Ta Photo</h3>
+          <p class="text-xs text-slate-600">Prise à l'inscription pour identifier ton compte et sécuriser ton accès personnel.</p>
+        </div>
+
+        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+        
+          <h3 class="font-bold text-slate-900 text-sm mb-1">2. Suivi d'Activité</h3>
+          <p class="text-xs text-slate-600">Un logiciel analyse tes fenêtres pour vérifier que le poste est utilisé dans un cadre éducatif.</p>
+        </div>
+
+        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+          
+          <h3 class="font-bold text-slate-900 text-sm mb-1">3. Capital de 20 Points</h3>
+          <p class="text-xs text-slate-600">Tu démarres avec 20 points. Chaque usage non éducatif (jeux, vidéos de loisir) enlève 1 point.</p>
+        </div>
+
+        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 border-l-4 border-l-rose-500">
+          
+          <h3 class="font-bold text-slate-900 text-sm mb-1">4. Éteindre son PC</h3>
+          <p class="text-xs text-slate-600">Quand ton travail est fini, tu dois systématiquement enregistrer tes fichiers et éteindre le poste.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 2 : ÉTAPE PAR ÉTAPE -->
+    <section id="etapes" class="space-y-4">
+      <div class="text-center max-w-2xl mx-auto">
+        <span class="bg-blue-100 text-blue-900 text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded">Guide Opérationnel</span>
+        <h2 class="text-xl sm:text-2xl font-bold text-slate-900 mt-1">Les 4 étapes d'une session réussie </h2>
+        <p class="text-slate-600 text-xs sm:text-sm">
+          Déroulement exact de ton passage sur les ordinateurs du Centre.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        <!-- Étape 1 -->
+        <div class="bg-white rounded-xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="w-8 h-8 bg-slate-800 text-amber-400 font-extrabold text-base rounded-lg flex items-center justify-center mb-3">1</div>
+            <h3 class="font-bold text-slate-900 text-sm mb-1">Connexion</h3>
+            <p class="text-xs text-slate-600">Identifie-toi avec ton compte personnel et ta photo. La session démarre avec tes 20 points.</p>
+          </div>
+          <div class="mt-4 pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-medium">
+            <span>Ouverture</span>
+            
+          </div>
+        </div>
+
+        <!-- Étape 2 -->
+        <div class="bg-white rounded-xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="w-8 h-8 bg-slate-800 text-amber-400 font-extrabold text-base rounded-lg flex items-center justify-center mb-3">2</div>
+            <h3 class="font-bold text-slate-900 text-sm mb-1">Travail & Recherche</h3>
+            <p class="text-xs text-slate-600">Effectue tes devoirs, programme ou fais des recherches éducatives. Le suivi vérifie le contexte.</p>
+          </div>
+          <div class="mt-4 pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-medium">
+            <span>Activité utile</span>
+            
+          </div>
+        </div>
+
+        <!-- Étape 3 -->
+        <div class="bg-white rounded-xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="w-8 h-8 bg-slate-800 text-amber-400 font-extrabold text-base rounded-lg flex items-center justify-center mb-3">3</div>
+            <h3 class="font-bold text-slate-900 text-sm mb-1">Maintien des Points</h3>
+            <p class="text-xs text-slate-600">Tant que tu travailles, ton solde reste à 20 points. Un écart de divertissement enlève 1 point.</p>
+          </div>
+          <div class="mt-4 pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-medium">
+            <span>Suivi continu</span>
+            
+          </div>
+        </div>
+
+        <!-- Étape 4 (CRITIQUE : EXTINCTION) -->
+        <div class="bg-amber-50 rounded-xl p-5 border-2 border-amber-400 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="w-8 h-8 bg-amber-600 text-white font-extrabold text-base rounded-lg flex items-center justify-center mb-3">4</div>
+            <h3 class="font-bold text-amber-950 text-sm mb-1">Éteindre l'Ordinateur</h3>
+            <p class="text-xs text-slate-700"><strong>Obligatoire :</strong> Sauvegarde tes travaux, ferme ta session et éteins complètement le poste !</p>
+          </div>
+          <div class="mt-4 pt-2 border-t border-amber-200 flex items-center justify-between text-xs text-amber-900 font-bold">
+            <span>Fin de session</span>
+           
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 3 : CE QU'IL FAUT FAIRE / NE PAS FAIRE -->
+    <section id="regles" class="space-y-4">
+      <div class="text-center max-w-2xl mx-auto">
+        <span class="bg-emerald-100 text-emerald-900 text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded">Règles de Conduite</span>
+        <h2 class="text-xl sm:text-2xl font-bold text-slate-900 mt-1">Ce qu'il faut faire et ne pas faire </h2>
+        <p class="text-slate-600 text-xs sm:text-sm">
+          Filtre par thème pour découvrir comment préserver ton capital de 20 points et garder la salle en bon état.
+        </p>
+
+        <!-- Filtres interactifs -->
+        <div class="flex flex-wrap justify-center gap-2 mt-3">
+          <button onclick="filterRules('all')" id="btn-filter-all" class="filter-btn bg-slate-800 text-white px-3 py-1 rounded-full text-xs font-bold">Tout voir</button>
+          <button onclick="filterRules('etudes')" id="btn-filter-etudes" class="filter-btn bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 px-3 py-1 rounded-full text-xs font-bold"> Études & Recherche</button>
+          <button onclick="filterRules('materiel')" id="btn-filter-materiel" class="filter-btn bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 px-3 py-1 rounded-full text-xs font-bold"> Soin du Matériel & Extinction</button>
+          <button onclick="filterRules('comportement')" id="btn-filter-comportement" class="filter-btn bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 px-3 py-1 rounded-full text-xs font-bold"> Respect & Calme</button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        <!-- CE QU'IL FAUT FAIRE -->
+        <div class="bg-emerald-50/80 rounded-2xl p-5 border border-emerald-300 space-y-3">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 bg-emerald-600 text-white rounded-lg flex items-center justify-center font-bold text-sm">
+              ✓
+            </div>
+            <div>
+              <h3 class="text-lg font-bold text-emerald-950">À FAIRE</h3>
+              <p class="text-xs text-emerald-800">Pour maintenir tes 20 points intacts</p>
+            </div>
+          </div>
+
+          <div class="space-y-2.5" id="do-list">
+            <div class="rule-card do-card etudes bg-white p-3 rounded-xl border border-emerald-200 text-xs text-slate-700 space-y-1">
+              <div class="font-bold text-emerald-900 flex items-center gap-1.5">
+                 Recherche éducative & Programmation
+              </div>
+              <p>Fais tes devoirs, consulte de la documentation technique, apprends à coder ou révise tes cours.</p>
+            </div>
+
+            <div class="rule-card do-card materiel bg-white p-3 rounded-xl border border-emerald-200 text-xs text-slate-700 space-y-1">
+              <div class="font-bold text-emerald-900 flex items-center gap-1.5">
+                Éteindre son ordinateur à la fin
+              </div>
+              <p>Chaque utilisateur doit éteindre proprement le poste dès qu'il a fini sa session de travail.</p>
+            </div>
+
+            <div class="rule-card do-card materiel bg-white p-3 rounded-xl border border-emerald-200 text-xs text-slate-700 space-y-1">
+              <div class="font-bold text-emerald-900 flex items-center gap-1.5">
+                Manipuler le matériel avec soin
+              </div>
+              <p>Traite l'écran, le clavier et la souris avec douceur. Signale immédiatement toute panne à l'animateur.</p>
+            </div>
+
+            <div class="rule-card do-card comportement bg-white p-3 rounded-xl border border-emerald-200 text-xs text-slate-700 space-y-1">
+              <div class="font-bold text-emerald-900 flex items-center gap-1.5">
+                 Garder le calme dans la salle
+              </div>
+              <p>Travaille dans le calme pour respecter la concentration des autres camarades et adultes présents.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- CE QU'IL NE FAUT PAS FAIRE -->
+        <div class="bg-rose-50/80 rounded-2xl p-5 border border-rose-300 space-y-3">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 bg-rose-600 text-white rounded-lg flex items-center justify-center font-bold text-sm">
+              ✕
+            </div>
+            <div>
+              <h3 class="text-lg font-bold text-rose-950">À ÉVITER (Pénalité : -1 point)</h3>
+              <p class="text-xs text-rose-800">Actions détectées par le logiciel de suivi</p>
+            </div>
+          </div>
+
+          <div class="space-y-2.5" id="dont-list">
+            <div class="rule-card dont-card etudes bg-white p-3 rounded-xl border border-rose-200 text-xs text-slate-700 space-y-1">
+              <div class="font-bold text-rose-900 flex items-center gap-1.5">
+                 Jeux vidéo de loisir hors-programme
+              </div>
+              <p>Lancer des jeux vidéo non éducatifs pendant la session fait perdre 1 point immédiatement.</p>
+            </div>
+
+            <div class="rule-card dont-card etudes bg-white p-3 rounded-xl border border-rose-200 text-xs text-slate-700 space-y-1">
+              <div class="font-bold text-rose-900 flex items-center gap-1.5">
+                 Films, Séries & Clips de divertissement
+              </div>
+              <p>Le visionnage de bandes-annonces, d'animes, ou de clips musicaux de loisir retire 1 point du solde.</p>
+            </div>
+
+            <div class="rule-card dont-card materiel bg-white p-3 rounded-xl border border-rose-200 text-xs text-slate-700 space-y-1">
+              <div class="font-bold text-rose-900 flex items-center gap-1.5">
+                 Boissons ou nourriture près du poste
+              </div>
+              <p>Afin de ne pas détériorer l'ordinateur, ne pose aucune boisson ni nourriture sur les tables d'informatique.</p>
+            </div>
+
+            <div class="rule-card dont-card comportement bg-white p-3 rounded-xl border border-rose-200 text-xs text-slate-700 space-y-1">
+              <div class="font-bold text-rose-900 flex items-center gap-1.5">
+                 Partir sans éteindre la machine
+              </div>
+              <p>Laisser un ordinateur allumé après son départ gaspille l'énergie et laisse ton compte ouvert sans surveillance.</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- SECTION 4 : SIMULATEUR INTERACTIF À 20 POINTS -->
+    <section id="simulateur" class="bg-stone-200/60 rounded-2xl p-6 border border-stone-300 text-slate-800 space-y-5">
+      <div class="max-w-2xl">
+        <span class="bg-amber-200 text-amber-950 text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded">Simulateur Interactif</span>
+        <h2 class="text-xl sm:text-2xl font-bold text-slate-900 mt-1">Comment fonctionne le Permis à 20 Points ? </h2>
+        <p class="text-xs sm:text-sm text-slate-700 mt-1">
+          Chaque compte dispose au départ d'un capital initial de <strong>20 points</strong>. Le système de suivi évalue la nature de ton activité en temps réel. Teste les boutons ci-dessous pour observer l'évolution du solde !
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+        <!-- Commandes du simulateur -->
+        <div class="md:col-span-6 space-y-2.5">
+          <p class="text-xs font-bold text-slate-700 uppercase tracking-wider">Clique sur une action pour tester le suivi :</p>
+          
+          <button onclick="simulateAction('devoir')" class="w-full text-left bg-white hover:bg-emerald-50 p-3 rounded-xl border border-stone-300 shadow-sm flex items-center justify-between transition group">
+            <div class="flex items-center gap-2 text-xs sm:text-sm">
+             
+              <span class="font-bold text-slate-800 group-hover:text-emerald-800">Faire ses devoirs / Programmer</span>
+            </div>
+            <span class="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">0 pt (Capital intact)</span>
+          </button>
+
+          <button onclick="simulateAction('recherche')" class="w-full text-left bg-white hover:bg-emerald-50 p-3 rounded-xl border border-stone-300 shadow-sm flex items-center justify-between transition group">
+            <div class="flex items-center gap-2 text-xs sm:text-sm">
+              
+              <span class="font-bold text-slate-800 group-hover:text-emerald-800">Recherche "Comment arrêter les mangas"</span>
+            </div>
+            <span class="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">0 pt (Recherche utile)</span>
+          </button>
+
+          <button onclick="simulateAction('film')" class="w-full text-left bg-white hover:bg-rose-50 p-3 rounded-xl border border-stone-300 shadow-sm flex items-center justify-between transition group">
+            <div class="flex items-center gap-2 text-xs sm:text-sm">
+              
+              <span class="font-bold text-slate-800 group-hover:text-rose-800">Regarder une bande-annonce / Un film</span>
+            </div>
+            <span class="text-xs font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded">-1 point</span>
+          </button>
+
+          <button onclick="simulateAction('jeu')" class="w-full text-left bg-white hover:bg-rose-50 p-3 rounded-xl border border-stone-300 shadow-sm flex items-center justify-between transition group">
+            <div class="flex items-center gap-2 text-xs sm:text-sm">
+              
+              <span class="font-bold text-slate-800 group-hover:text-rose-800">Lancer un jeu de divertissement</span>
+            </div>
+            <span class="text-xs font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded">-1 point</span>
+          </button>
+
+          <button onclick="simulateAction('explication')" class="w-full text-left bg-white hover:bg-blue-50 p-3 rounded-xl border border-stone-300 shadow-sm flex items-center justify-between transition group">
+            <div class="flex items-center gap-2 text-xs sm:text-sm">
+              
+              <span class="font-bold text-slate-800 group-hover:text-blue-800">Discussion & Éclaircissement avec l'animateur</span>
+            </div>
+            <span class="text-xs font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded"> Rétablissement  (20 pts)</span>
+          </button>
+
+          <button onclick="resetSimulation()" class="text-xs text-slate-600 underline font-bold pt-1 block">
+            Réinitialiser la simulation du solde
+          </button>
+        </div>
+
+        <!-- Graphique Chart.js -->
+        <div class="md:col-span-6 bg-white p-4 rounded-2xl border border-stone-300 shadow-sm">
+          <div class="flex justify-between items-center mb-2">
+            <h4 class="font-bold text-slate-800 text-xs sm:text-sm">Solde du Permis (Max 20) :</h4>
+            <span id="score-badge" class="bg-emerald-100 text-emerald-800 font-black text-sm px-3 py-0.5 rounded-full">
+              20 / 20 Points
+            </span>
+          </div>
+          
+          <div class="chart-container">
+            <canvas id="pointsChart"></canvas>
+          </div>
+
+          <p id="simu-status" class="text-xs text-slate-600 mt-2 bg-stone-50 p-2.5 rounded-lg border border-stone-200">
+             <strong>État initial :</strong> Ton solde est au maximum (20 points). L'accès au poste reste fluide et libre tant que l'usage reste éducatif.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 5 : EXPLICATION TECHNIQUE DU SUIVI (IA ET CONTEXTE) -->
+    <section class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-3">
+      <span class="bg-slate-100 text-slate-800 text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded">Transparence Technique</span>
+      <h2 class="text-lg sm:text-xl font-bold text-slate-900">
+         Comment le logiciel de suivi fait-il la différence ?
+      </h2>
+      <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+        Le logiciel installé sur le poste ne se contente pas de chercher des mots isolés. Il analyse le <strong>contexte réel</strong> de ta recherche pour éviter les sanctions injustifiées :
+      </p>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+        <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1">
+          <div class="font-bold text-slate-900 flex items-center gap-1">
+            Exemple éducatif admis
+          </div>
+          <p class="text-slate-600">
+            Rechercher <em>"Comment arrêter les mangas"</em> ou regarder un <em>"Documentaire sur les jeux vidéo"</em> est une recherche d'information. C'est <strong>autorisé (0 pénalité)</strong>.
+          </p>
+        </div>
+
+        <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1">
+          <div class="font-bold text-slate-900 flex items-center gap-1">
+             Exemple de divertissement sanctionné
+          </div>
+          <p class="text-slate-600">
+            Regarder directement un épisode d'anime, un trailer de film ou jouer à un jeu en ligne est un usage de loisir. C'est <strong>sanctionné (-1 point)</strong>.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 6 : DROITS & RECOURS HUMAIN -->
+    <section id="droits" class="bg-slate-900 text-white rounded-2xl p-6 sm:p-8 shadow-md space-y-4">
+      <div class="max-w-2xl">
+        <span class="bg-amber-400 text-slate-950 text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded">Garantie & Recours</span>
+        <h2 class="text-xl sm:text-2xl font-bold text-white mt-1">
+           Vos Droits : Le réexamen humain est toujours possible
+        </h2>
+        <p class="text-slate-300 text-xs sm:text-sm">
+          Que vous soyez un enfant ou un adulte, aucune décision automatique n'est irrévocable.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+        <div class="bg-slate-800 p-3.5 rounded-xl border border-slate-700 space-y-1">
+          <div class="font-bold text-amber-400 text-sm">1. Droit de Savoir</div>
+          <p class="text-slate-300">Vous pouvez demander à tout moment votre nombre de points restant et consulter l'historique de votre session.</p>
+        </div>
+
+        <div class="bg-slate-800 p-3.5 rounded-xl border border-slate-700 space-y-1">
+          <div class="font-bold text-amber-400 text-sm">2. Droit d'Explication</div>
+          <p class="text-slate-300">Si une pénalité de -1 point vous semble injustée, signalez-le à l'animateur du Centre pour expliquer le contexte de votre travail.</p>
+        </div>
+
+        <div class="bg-slate-800 p-3.5 rounded-xl border border-slate-700 space-y-1">
+          <div class="font-bold text-amber-400 text-sm">3. Restitution des Points</div>
+          <p class="text-slate-300">L'équipe du Centre peut réévaluer la situation manuellement et restituer immédiatement vos points sur votre compte.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 7 : MINI-QUIZ DE VALIDATION -->
+    <section class="bg-amber-100/80 rounded-2xl p-6 border-2 border-amber-300 text-center space-y-4">
+      <div class="max-w-xl mx-auto space-y-1">
+        
+        <h3 class="text-lg sm:text-xl font-bold text-amber-950">Quiz rapide : Validez vos réflexes !</h3>
+        <p class="text-xs sm:text-sm text-slate-700">
+          Répondez à cette question pour vérifier que vous avez assimilé les deux consignes principales :
+        </p>
+      </div>
+
+      <div id="quiz-box" class="max-w-lg mx-auto bg-white p-4 rounded-xl border border-amber-300 text-left space-y-3">
+        <p class="font-bold text-xs sm:text-sm text-slate-800">
+           Lorsque vous avez terminé votre travail sur l'ordinateur, que devez-vous faire ?
+        </p>
+        <div class="space-y-2 text-xs sm:text-sm">
+          <label class="flex items-center gap-2 p-2 rounded-lg border border-slate-200 hover:bg-amber-50 cursor-pointer transition">
+            <input type="radio" name="quiz" value="a" class="accent-amber-600">
+            <span>A. Laisser l'ordinateur allumé et partir immédiatement.</span>
+          </label>
+          <label class="flex items-center gap-2 p-2 rounded-lg border border-slate-200 hover:bg-amber-50 cursor-pointer transition">
+            <input type="radio" name="quiz" value="b" class="accent-amber-600">
+            <span>B. Sauvegarder ses travaux, fermer sa session et éteindre complètement le poste.</span>
+          </label>
+          <label class="flex items-center gap-2 p-2 rounded-lg border border-slate-200 hover:bg-amber-50 cursor-pointer transition">
+            <input type="radio" name="quiz" value="c" class="accent-amber-600">
+            <span>C. Lancer un jeu vidéo pour épuiser les points restants.</span>
+          </label>
+        </div>
+
+        <button onclick="checkQuiz()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 px-4 rounded-lg shadow transition text-xs sm:text-sm">
+          Valider ma réponse ! 
+        </button>
+      </div>
+
+      <div id="quiz-result" class="hidden max-w-lg mx-auto p-3 rounded-xl text-xs sm:text-sm font-bold"></div>
+    </section>
+
+  </main>
+
+  <!-- Pied de page -->
+  <footer class="max-w-5xl mx-auto px-4 mt-10 pt-4 border-t border-slate-300 text-center text-xs text-slate-600 space-y-1">
+    <div class="font-bold text-slate-800"> CAEB NATITINGOU — Postes Informatiques</div>
+    <div>Rappel : Éteignez toujours votre ordinateur à la fin de votre session !</div>
+  </footer>
+
+  <!-- JS INTERACTIF -->
+  <script>
+    // 1. Navigation fluide
+    function scrollToSection(id) {
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+
+    // 2. Filtre des règles (Do's and Don'ts)
+    function filterRules(category) {
+      const doCards = document.querySelectorAll('.do-card');
+      const dontCards = document.querySelectorAll('.dont-card');
+      const buttons = document.querySelectorAll('.filter-btn');
+
+      buttons.forEach(btn => {
+        btn.classList.remove('bg-slate-800', 'text-white');
+        btn.classList.add('bg-white', 'text-slate-700', 'hover:bg-slate-100');
+      });
+
+      const activeBtn = document.getElementById(`btn-filter-${category}`);
+      if (activeBtn) {
+        activeBtn.classList.remove('bg-white', 'text-slate-700', 'hover:bg-slate-100');
+        activeBtn.classList.add('bg-slate-800', 'text-white');
+      }
+
+      const filterList = (cards) => {
+        cards.forEach(card => {
+          if (category === 'all' || card.classList.contains(category)) {
+            card.style.display = 'block';
+          } else {
+            card.style.display = 'none';
+          }
+        });
+      };
+
+      filterList(doCards);
+      filterList(dontCards);
+    }
+
+    // 3. Graphique Chart.js - Permis à 20 Points
+    let pointsChart;
+    let scoreHistory = [20];
+    let timeLabels = ['Départ'];
+
+    function initChart() {
+      const ctx = document.getElementById('pointsChart').getContext('2d');
+      pointsChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: timeLabels,
+          datasets: [{
+            label: 'Capital de Points',
+            data: scoreHistory,
+            borderColor: '#10b981',
+            backgroundColor: 'rgba(16, 185, 129, 0.15)',
+            borderWidth: 3,
+            fill: true,
+            tension: 0.2,
+            pointRadius: 5,
+            pointBackgroundColor: '#047857'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              min: 0,
+              max: 20,
+              ticks: {
+                stepSize: 5
+              }
+            }
+          },
+          plugins: {
+            legend: { display: false }
+          }
+        }
+      });
+    }
+
+    function simulateAction(actionType) {
+      let currentScore = scoreHistory[scoreHistory.length - 1];
+      let newScore = currentScore;
+      let label = '';
+      let statusText = '';
+
+      if (actionType === 'devoir') {
+        newScore = currentScore;
+        label = 'Devoirs/Code';
+        statusText = ' <strong>Activité Éducative :</strong> Recherche de cours ou programmation. Solde conservé : ' + newScore + ' pts.';
+      } else if (actionType === 'recherche') {
+        newScore = currentScore;
+        label = 'Recherche Utile';
+        statusText = ' <strong>Analyse Contextuelle :</strong> Recherche d\'information légitime (ex: "comment arrêter les mangas"). Solde conservé : ' + newScore + ' pts.';
+      } else if (actionType === 'film') {
+        newScore = Math.max(0, currentScore - 1);
+        label = 'Film/Trailer';
+        statusText = ' <strong>Divertissement Détecté :</strong> Visionnage de vidéo de loisir sans rapport avec les études. <strong>-1 point</strong>. Solde : ' + newScore + ' pts.';
+      } else if (actionType === 'jeu') {
+        newScore = Math.max(0, currentScore - 1);
+        label = 'Jeu Vidéo';
+        statusText = ' <strong>Divertissement Détecté :</strong> Lancement d\'un jeu de loisir hors-programme. <strong>-1 point</strong>. Solde : ' + newScore + ' pts.';
+      } else if (actionType === 'explication') {
+        newScore = 20;
+        label = 'Échange Animateur';
+        statusText = ' <strong>Réexamen Humain :</strong> Explication fournie au responsable du Centre. Tes points sont intégralement rétablis à 20 points !';
+      }
+
+      scoreHistory.push(newScore);
+      timeLabels.push(label);
+
+      pointsChart.data.labels = timeLabels;
+      pointsChart.data.datasets[0].data = scoreHistory;
+
+      if (newScore <= 10) {
+        pointsChart.data.datasets[0].borderColor = '#ef4444';
+        pointsChart.data.datasets[0].backgroundColor = 'rgba(239, 68, 68, 0.15)';
+      } else if (newScore < 18) {
+        pointsChart.data.datasets[0].borderColor = '#f59e0b';
+        pointsChart.data.datasets[0].backgroundColor = 'rgba(245, 158, 11, 0.15)';
+      } else {
+        pointsChart.data.datasets[0].borderColor = '#10b981';
+        pointsChart.data.datasets[0].backgroundColor = 'rgba(16, 185, 129, 0.15)';
+      }
+
+      pointsChart.update();
+
+      const badge = document.getElementById('score-badge');
+      badge.innerText = `${newScore} / 20 Points`;
+      if (newScore <= 10) {
+        badge.className = 'bg-rose-100 text-rose-800 font-black text-sm px-3 py-0.5 rounded-full';
+      } else if (newScore < 18) {
+        badge.className = 'bg-amber-100 text-amber-900 font-black text-sm px-3 py-0.5 rounded-full';
+      } else {
+        badge.className = 'bg-emerald-100 text-emerald-800 font-black text-sm px-3 py-0.5 rounded-full';
+      }
+
+      document.getElementById('simu-status').innerHTML = statusText;
+    }
+
+    function resetSimulation() {
+      scoreHistory = [20];
+      timeLabels = ['Départ'];
+      pointsChart.data.labels = timeLabels;
+      pointsChart.data.datasets[0].data = scoreHistory;
+      pointsChart.data.datasets[0].borderColor = '#10b981';
+      pointsChart.data.datasets[0].backgroundColor = 'rgba(16, 185, 129, 0.15)';
+      pointsChart.update();
+
+      document.getElementById('score-badge').innerText = '20 / 20 Points';
+      document.getElementById('score-badge').className = 'bg-emerald-100 text-emerald-800 font-black text-sm px-3 py-0.5 rounded-full';
+      document.getElementById('simu-status').innerHTML = ' <strong>État initial :</strong> Ton solde est au maximum (20 points). L\'accès au poste reste fluide et libre tant que l\'usage reste éducatif.';
+    }
+
+    // 4. Validation du Mini-Quiz
+    function checkQuiz() {
+      const selected = document.querySelector('input[name="quiz"]:checked');
+      const resultDiv = document.getElementById('quiz-result');
+      
+      if (!selected) {
+        alert('Veuillez sélectionner une réponse (A, B ou C).');
+        return;
+      }
+
+      resultDiv.classList.remove('hidden', 'bg-rose-100', 'text-rose-900', 'bg-emerald-100', 'text-emerald-900');
+
+      if (selected.value === 'b') {
+        resultDiv.classList.add('bg-emerald-100', 'text-emerald-900', 'border', 'border-emerald-300');
+        resultDiv.innerHTML = ' Excellent réflexe ! Vous devez toujours sauvegarder, vous déconnecter et <strong>éteindre complètement l\'ordinateur</strong> à la fin de votre travail. Vous êtes prêt(e) ! ';
+      } else {
+        resultDiv.classList.add('bg-rose-100', 'text-rose-900', 'border', 'border-rose-300');
+        resultDiv.innerHTML = ' Mauvaise réponse. La bonne conduite est la <strong>B</strong> : sauvegarder ses documents et <strong>éteindre le poste informatique</strong> avant de quitter la salle.';
+      }
+    }
+
+    // Chargement de Chart.js
+    window.addEventListener('DOMContentLoaded', () => {
+      initChart();
+    });
+  </script>
+</body>
+</html>

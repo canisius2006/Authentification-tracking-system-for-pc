@@ -1,0 +1,1447 @@
+<!DOCTYPE html>
+<html lang="fr" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inscriptions en Attente</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        /* Progress ring animation for auto-refresh */
+        .timer-ring-circle {
+            transition: stroke-dashoffset 1s linear;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
+    </style>
+</head>
+<body class="h-full font-sans text-slate-800 antialiased bg-slate-50 flex flex-col">
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2 pointer-events-none max-w-sm w-full"></div>
+
+    <!-- Header Navbar -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col sm:flex-row items-center justify-between py-3 sm:py-0 sm:h-16 gap-3 sm:gap-0">
+                <!-- Brand Title -->
+                <div class="flex items-center space-x-3 w-full sm:w-auto justify-between sm:justify-start">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center text-white shadow-md shadow-amber-500/20 font-bold text-lg">
+                            <i class="fa-solid fa-user-clock"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-lg font-bold text-slate-900 leading-tight">Administration Pending Users</h1>
+                            <p class="text-xs text-amber-600 font-medium flex items-center gap-1.5">
+                                <span id="api-status-dot" class="w-2 h-2 rounded-full bg-slate-300"></span>
+                                <span id="api-status-text">Non connecté</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Action Header & Auto-Refresh Bar -->
+                <div class="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-end flex-wrap sm:flex-nowrap">
+
+                    <!-- Auto-Refresh Toggle & Timer Box -->
+                    <div class="flex items-center gap-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200">
+                        <div class="relative w-6 h-6 flex items-center justify-center">
+                            <svg class="w-6 h-6">
+                                <circle class="text-slate-200" stroke-width="2.5" stroke="currentColor" fill="transparent" r="9" cx="12" cy="12"/>
+                                <circle id="timer-progress-ring" class="text-brand-600 timer-ring-circle" stroke-width="2.5" stroke-dasharray="56.54" stroke-dashoffset="0" stroke-linecap="round" stroke="currentColor" fill="transparent" r="9" cx="12" cy="12"/>
+                            </svg>
+                            <i id="auto-refresh-icon" class="fa-solid fa-rotate text-[9px] text-brand-600 absolute"></i>
+                        </div>
+
+                        <div class="flex items-center gap-1.5">
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="auto-refresh-toggle" onchange="toggleAutoRefresh(this.checked)" class="sr-only peer" checked>
+                                <div class="w-7 h-4 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-brand-600"></div>
+                            </label>
+                            <span class="text-[11px] font-semibold text-slate-600 hidden md:inline">Auto-Sync</span>
+                        </div>
+
+                        <select id="auto-refresh-interval" onchange="changeAutoRefreshInterval(this.value)" class="bg-white text-slate-700 text-[11px] font-bold rounded-lg border border-slate-200 px-1.5 py-1 focus:ring-1 focus:ring-brand-500 outline-none cursor-pointer">
+                            <option value="5" selected>5s</option>
+                            <option value="10">10s</option>
+                            <option value="30">30s</option>
+                            <option value="60">1m</option>
+                            <option value="120">2m</option>
+                        </select>
+                        <span id="auto-refresh-countdown" class="text-[10px] font-mono font-bold text-brand-700 bg-brand-100 px-1.5 py-0.5 rounded-md min-w-[28px] text-center">5s</span>
+                    </div>
+
+                    <!-- Session / Logout -->
+                    <div id="session-badge" class="hidden px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-100 rounded-xl border border-slate-200 items-center gap-2">
+                        <i class="fa-solid fa-circle-user text-brand-600"></i>
+                        <span id="session-username">--</span>
+                        <button onclick="logoutUser()" title="Se déconnecter" class="text-slate-400 hover:text-red-600 ml-1">
+                            <i class="fa-solid fa-right-from-bracket"></i>
+                        </button>
+                    </div>
+
+                    <!-- Config API Button -->
+                    <button onclick="toggleApiSettingsModal()" class="px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors flex items-center gap-1.5 border border-slate-200">
+                        <i class="fa-solid fa-gear"></i>
+                        <span class="hidden md:inline">Config API</span>
+                    </button>
+
+                    <!-- Manual Fetch Button -->
+                    <button onclick="fetchPendingUsersFromAPI(false)" class="px-3.5 py-2 text-xs font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-xl transition-colors flex items-center gap-2 shadow-sm">
+                        <i class="fa-solid fa-rotate-right" id="refresh-icon"></i>
+                        <span>Charger API</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+        <!-- Banner Config & Auto-Sync Status -->
+        <div id="api-config-banner" class="bg-brand-50 border border-brand-200 rounded-2xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 bg-brand-600 text-white rounded-xl flex items-center justify-center text-sm flex-shrink-0">
+                    <i class="fa-solid fa-plug"></i>
+                </div>
+                <div style="display:none;">
+                    <h4 class="text-xs font-bold text-brand-900 uppercase tracking-wider">Connexion API Backend & Suppression</h4>
+                    <p class="text-xs text-brand-700 mt-0.5" id="current-api-url-display">URL API Liste : <code class="font-mono bg-white px-2 py-0.5 rounded text-brand-900 font-bold border border-brand-200">http://192.168.30.2:8000/api/liste-pending</code> | Endpoint Suppression : <code class="font-mono bg-white px-2 py-0.5 rounded text-red-700 font-bold border border-red-200">/api/users/{id}/</code></p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 w-full md:w-auto justify-end">
+                <span id="auto-refresh-status-badge" class="px-2.5 py-1 text-[11px] font-bold text-emerald-700 bg-emerald-100 rounded-lg flex items-center gap-1.5 border border-emerald-200">
+                    <i class="fa-solid fa-circle text-[8px] animate-pulse"></i> Auto-Sync Actif
+                </span>
+                <button onclick="toggleApiSettingsModal()" class="px-3 py-1.5 text-xs font-bold text-brand-700 bg-white hover:bg-brand-100 rounded-xl border border-brand-300 transition-colors">
+                    Changer les URL
+                </button>
+            </div>
+        </div>
+
+        <!-- Metrics / Stats Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-3xl mx-auto">
+            <!-- Total Pending Card -->
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">En attente de validation</p>
+                    <h3 id="stat-total-pending" class="text-3xl font-bold text-slate-900 mt-1">0</h3>
+                    <p class="text-xs text-amber-600 mt-1 font-medium"><i class="fa-solid fa-clock"></i> Inscriptions non validées</p>
+                </div>
+                <div class="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center text-xl">
+                    <i class="fa-solid fa-users"></i>
+                </div>
+            </div>
+
+            <!-- Gender Breakdown Card -->
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Répartition Sexe</p>
+                    <h3 id="stat-gender" class="text-2xl font-bold text-slate-900 mt-1">0 Hommes / 0 Femmes</h3>
+                    <p class="text-xs text-slate-500 mt-1">Données du champ <code class="font-mono text-slate-700">sexe</code></p>
+                </div>
+                <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center text-xl">
+                    <i class="fa-solid fa-venus-mars"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters & Search Bar -->
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+
+                <!-- Search Input -->
+                <div class="relative flex-1">
+                    <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                    </div>
+                    <input type="text" id="search-input" oninput="applyFilters()"
+                        placeholder="Rechercher par Nom, Username, Email, Matricule, Code, Téléphone, ID..."
+                        class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition-all">
+                </div>
+
+                <!-- Filters -->
+                <div class="flex items-center gap-3">
+                    <select id="filter-sexe" onchange="applyFilters()" class="bg-slate-50 border border-slate-300 text-slate-700 text-xs rounded-xl focus:ring-brand-500 focus:border-brand-500 p-2.5 font-medium cursor-pointer">
+                        <option value="">Tous les sexes (H/F)</option>
+                        <option value="H">Homme (H)</option>
+                        <option value="F">Femme (F)</option>
+                    </select>
+
+                    <select id="filter-date" onchange="applyFilters()" class="bg-slate-50 border border-slate-300 text-slate-700 text-xs rounded-xl focus:ring-brand-500 focus:border-brand-500 p-2.5 font-medium cursor-pointer">
+                        <option value="all">Toutes les dates</option>
+                        <option value="today">Inscrits aujourd'hui</option>
+                        <option value="7days">7 derniers jours</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dynamic Content Container -->
+        <div id="data-container" class="relative min-h-[300px]">
+
+            <!-- Loading Spinner State -->
+            <div id="loading-state" class="hidden flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-slate-200">
+                <div class="w-12 h-12 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin"></div>
+                <p class="text-sm font-semibold text-slate-700 mt-4">Chargement des données depuis l'API...</p>
+                <p class="text-xs text-slate-400 mt-1">Interrogation du serveur backend en cours</p>
+            </div>
+
+            <!-- Error State -->
+            <div id="error-state" class="hidden bg-red-50 border border-red-200 rounded-2xl p-8 text-center space-y-3">
+                <div class="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto text-xl">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <h3 class="text-base font-bold text-red-900">Erreur de connexion à l'API</h3>
+                <p id="error-message-text" class="text-xs text-red-700 max-w-lg mx-auto font-mono bg-white p-3 rounded-xl border border-red-200">
+                    Impossible de récupérer la liste des utilisateurs.
+                </p>
+                <div class="pt-2 flex items-center justify-center gap-3">
+                    <button onclick="fetchPendingUsersFromAPI(false)" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-xl transition-colors flex items-center gap-2">
+                        <i class="fa-solid fa-rotate-right"></i> Réessayer
+                    </button>
+                    <button onclick="loadMockDataForTesting()" class="px-4 py-2 bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-xl transition-colors border border-slate-300">
+                        Charger des données de test
+                    </button>
+                </div>
+            </div>
+
+            <!-- Rectangular Cards Grid View -->
+            <div id="grid-view" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                <!-- Rectangular cards dynamically injected via JavaScript -->
+            </div>
+
+            <!-- Empty State -->
+            <div id="empty-state" class="hidden bg-white rounded-2xl border border-slate-200 p-12 text-center">
+                <div class="w-16 h-16 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto text-2xl mb-4">
+                    <i class="fa-solid fa-user-slash"></i>
+                </div>
+                <h3 class="text-base font-bold text-slate-800">Aucun utilisateur trouvé</h3>
+                <p class="text-xs text-slate-500 mt-1 max-w-sm mx-auto">Aucune donnée ne correspond à votre filtre de recherche ou la réponse de l'API est vide.</p>
+                <button onclick="resetFilters()" class="mt-4 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition-colors">
+                    Réinitialiser la recherche
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Modal: LOGIN (obtention du token JWT) -->
+    <div id="login-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[60] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden border border-slate-100">
+            <div class="p-6 bg-slate-900 text-white text-center">
+                <div class="w-12 h-12 bg-brand-600 rounded-2xl flex items-center justify-center text-white mx-auto mb-3">
+                    <i class="fa-solid fa-lock"></i>
+                </div>
+                <h3 class="font-bold text-base">Connexion requise</h3>
+                <p class="text-xs text-slate-400 mt-1">Identifiez-vous pour accéder au tableau de bord</p>
+            </div>
+
+            <form onsubmit="handleLoginSubmit(event)" class="p-6 space-y-4">
+                <div id="login-error-box" class="hidden bg-red-50 border border-red-200 text-red-700 text-xs font-medium rounded-xl p-3"></div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Nom d'utilisateur</label>
+                    <input type="text" id="login-username-input" required autocomplete="username"
+                        class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Mot de passe</label>
+                    <input type="password" id="login-password-input" required autocomplete="current-password"
+                        class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                </div>
+
+                <button type="submit" id="login-submit-btn" class="w-full px-4 py-2.5 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-xl shadow-sm flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-right-to-bracket" id="login-submit-icon"></i>
+                    <span id="login-submit-text">Se connecter</span>
+                </button>
+
+                <button type="button" onclick="toggleApiSettingsModal()" class="w-full text-center text-[11px] text-slate-400 hover:text-brand-600 font-medium">
+                    Configurer l'URL du serveur d'authentification
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: API Settings Configuration -->
+    <div id="api-settings-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-100">
+            <div class="p-6 bg-slate-900 text-white flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 bg-brand-600 rounded-xl flex items-center justify-center text-white">
+                        <i class="fa-solid fa-sliders"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-base">Configuration API</h3>
+                        <p class="text-xs text-slate-400">Définissez les endpoints API et le serveur d'authentification</p>
+                    </div>
+                </div>
+                <button onclick="toggleApiSettingsModal()" class="text-slate-400 hover:text-white text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <form onsubmit="saveApiConfig(event)" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Route principale du serveur (host + port)</label>
+                    <input type="url" id="api-base-url-input" required placeholder="http://192.168.30.2:8000"
+                        class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                    <p class="text-[11px] text-slate-400 mt-1">Une seule adresse à renseigner : tous les endpoints ci-dessous en sont dérivés automatiquement, inutile de la répéter.</p>
+                </div>
+
+                <div class="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5 text-[11px] font-mono text-slate-600">
+                    <p><span class="font-bold text-slate-500 uppercase text-[10px] font-sans">Liste pending :</span> <code id="route-preview-list">/api/liste-pending</code></p>
+                    <p><span class="font-bold text-slate-500 uppercase text-[10px] font-sans">Suppression :</span> <code id="route-preview-delete">/api/users/{id}/</code></p>
+                    <p><span class="font-bold text-slate-500 uppercase text-[10px] font-sans">Login :</span> <code id="route-preview-token">/api/token/</code></p>
+                    <p><span class="font-bold text-slate-500 uppercase text-[10px] font-sans">Refresh token :</span> <code id="route-preview-refresh">/api/token/refresh/</code></p>
+                </div>
+
+                <p class="text-[11px] text-slate-400">L'authentification se fait désormais via la connexion (login) — le token d'accès est géré et renouvelé automatiquement.</p>
+
+                <div class="pt-4 border-t border-slate-100 flex items-center justify-between">
+                    <button type="button" onclick="loadMockDataForTesting()" class="text-xs text-brand-600 hover:underline font-semibold">
+                        Utiliser données démo
+                    </button>
+                    <div class="flex gap-2">
+                        <button type="button" onclick="toggleApiSettingsModal()" class="px-4 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl">
+                            Annuler
+                        </button>
+                        <button type="submit" class="px-4 py-2 text-xs font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-xl shadow-sm">
+                            Enregistrer
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: User Expanded Detail View -->
+    <div id="user-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4" onclick="handleModalBackdropClick(event)">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-slate-100">
+
+            <!-- Modal Header -->
+            <div class="p-6 bg-slate-900 text-white flex items-start justify-between relative">
+                <div class="flex items-center gap-4">
+                    <!-- Direct Link Photo Trigger -->
+                    <div class="relative group/modal-avatar flex-shrink-0">
+                        <img id="modal-avatar-img" src="" onerror="this.src='https://placehold.co/100x100/3b82f6/fff?text=U'" class="w-16 h-16 rounded-2xl object-cover border-2 border-white/20 shadow-md">
+                        <a id="modal-avatar-link" href="#" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="absolute -bottom-1 -right-1 bg-brand-600 hover:bg-brand-500 text-white w-7 h-7 rounded-full flex items-center justify-center text-xs shadow-md border-2 border-slate-900 transition-transform hover:scale-110" title="Ouvrir le lien direct de la photo">
+                            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                        </a>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span id="modal-id-badge" class="px-2 py-0.5 bg-amber-500/20 text-amber-300 text-[10px] font-mono font-bold rounded-md border border-amber-500/30">ID: #0</span>
+                            <span id="modal-sexe-badge" class="px-2 py-0.5 text-[10px] font-bold rounded-md uppercase">H</span>
+                        </div>
+                        <h3 id="modal-user-fullname" class="font-bold text-lg text-white mt-1">Prénom Nom</h3>
+                        <p id="modal-user-username" class="text-xs text-slate-300 font-mono">@username</p>
+                    </div>
+                </div>
+                <button onclick="closeUserModal()" class="w-9 h-9 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center transition-colors">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Modal Body - Priority API Fields -->
+            <div class="p-6 overflow-y-auto custom-scrollbar space-y-5 bg-slate-50/50">
+
+                <!-- Code & Score Block -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="p-3.5 bg-amber-50 border border-amber-200 rounded-xl space-y-1">
+                        <span class="text-[10px] font-bold uppercase text-amber-700 tracking-wider block">Code d'activation</span>
+                        <div class="flex items-center justify-between">
+                            <code id="modal-activation-code" class="text-base font-mono font-bold text-amber-900">--</code>
+                            <button onclick="copyModalActivationCode()" class="text-amber-700 hover:text-amber-900 p-1 text-xs" title="Copier le code">
+                                <i class="fa-regular fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="p-3.5 bg-blue-50 border border-blue-200 rounded-xl space-y-1">
+                        <span class="text-[10px] font-bold uppercase text-blue-700 tracking-wider block">Score</span>
+                        <p id="modal-score" class="text-base font-bold text-blue-900">0</p>
+                    </div>
+                </div>
+
+                <!-- Main API Fields Grid -->
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3 text-xs">
+                    <h4 class="font-bold uppercase text-[11px] border-b border-slate-100 pb-2 text-slate-400">
+                        Données Utilisateur API
+                    </h4>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <span class="text-slate-400 block text-[10px] uppercase font-semibold">Email</span>
+                            <span id="modal-email" class="font-semibold text-slate-900 select-all font-mono break-all">--</span>
+                        </div>
+                        <div>
+                            <span class="text-slate-400 block text-[10px] uppercase font-semibold">Téléphone</span>
+                            <span id="modal-telephone" class="font-semibold text-slate-900 select-all">--</span>
+                        </div>
+                        <div>
+                            <span class="text-slate-400 block text-[10px] uppercase font-semibold">Matricule</span>
+                            <span id="modal-matricule" class="font-mono font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded text-[11px] inline-block mt-0.5">--</span>
+                        </div>
+                        <div>
+                            <span class="text-slate-400 block text-[10px] uppercase font-semibold">Sexe</span>
+                            <span id="modal-sexe-full" class="font-semibold text-slate-900">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Timestamps -->
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-2 text-xs">
+                    <h4 class="font-bold uppercase text-[11px] border-b border-slate-100 pb-2 text-slate-400">
+                        Horodatages (`created_at` / `updated_at`)
+                    </h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <span class="text-slate-400 block text-[10px]">Date de création</span>
+                            <span id="modal-created-at" class="font-medium text-slate-700">--</span>
+                        </div>
+                        <div>
+                            <span class="text-slate-400 block text-[10px]">Dernière mise à jour</span>
+                            <span id="modal-updated-at" class="font-medium text-slate-700">--</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Footer Action -->
+            <div class="p-4 bg-white border-t border-slate-200 flex items-center justify-between">
+                <button onclick="triggerDeleteFromModal()" class="px-4 py-2 text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-xl transition-colors flex items-center gap-1.5">
+                    <i class="fa-solid fa-trash-can"></i> Supprimer cet utilisateur
+                </button>
+                <button onclick="closeUserModal()" class="px-5 py-2.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">
+                    Fermer
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: CONFIRMATION DE SUPPRESSION (simple) -->
+    <div id="delete-confirm-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-red-100">
+
+            <!-- Red Warning Header -->
+            <div class="p-5 bg-red-600 text-white flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-white text-lg">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-base">Confirmer la suppression</h3>
+                        <p class="text-xs text-red-100">Action irréversible sur l'API Backend</p>
+                    </div>
+                </div>
+                <button onclick="closeDeleteModal()" class="text-red-200 hover:text-white text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Content Area -->
+            <div class="p-6 space-y-4">
+
+                <!-- Target User Box -->
+                <div class="p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3">
+                    <img id="delete-user-avatar" src="" class="w-12 h-12 rounded-xl object-cover border border-red-200">
+                    <div>
+                        <span id="delete-user-id" class="text-[10px] font-mono font-bold bg-red-100 text-red-800 px-1.5 py-0.5 rounded">ID: #0</span>
+                        <h4 id="delete-user-fullname" class="font-bold text-slate-900 text-sm mt-0.5">Nom de l'utilisateur</h4>
+                        <p id="delete-user-username" class="text-xs text-slate-500 font-mono">@username</p>
+                    </div>
+                </div>
+
+                <p class="text-xs text-slate-600 font-semibold">
+                    Êtes-vous sûr de vouloir supprimer définitivement ce compte ? Cette action ne peut pas être annulée.
+                </p>
+            </div>
+
+            <!-- Footer Buttons -->
+            <div class="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2">
+                <button type="button" onclick="closeDeleteModal()" class="px-4 py-2 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-100 border border-slate-300 rounded-xl transition-colors">
+                    Annuler
+                </button>
+
+                <button type="button" id="final-delete-btn" onclick="executeDeleteUserAPI()"
+                    class="px-5 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 disabled:bg-slate-300 disabled:cursor-not-allowed rounded-xl shadow-sm transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-trash-can" id="delete-btn-icon"></i>
+                    <span id="delete-btn-text">Supprimer</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Logic & API Integration -->
+    <script>
+        // ===================================================================
+        // CONFIGURATION CENTRALISÉE DE L'API
+        // ---------------------------------------------------------------
+        // Une seule "route principale" (host + port) à modifier : tous les
+        // endpoints ci-dessous (ROUTES) sont de simples chemins relatifs,
+        // construits automatiquement à partir de API_BASE_URL. Plus besoin
+        // de répéter/mettre à jour l'IP ou le port à plusieurs endroits.
+        // ===================================================================
+        let API_BASE_URL = (localStorage.getItem('api_base_url') || `http://${window.location.host}`).replace(/\/+$/, '');
+
+        // Chemins relatifs des endpoints (à adapter ici si le backend change ses routes,
+        // indépendamment du host/port).
+        const ROUTES = {
+            list: '/api/liste-pending',
+            userDelete: '/api/users/{id}/',
+            tokenObtain: '/api/token/',
+            tokenRefresh: '/api/token/refresh/'
+        };
+
+        // Construit une URL absolue à partir d'un chemin relatif et de API_BASE_URL
+        function buildApiUrl(path) {
+            return `${API_BASE_URL}${path.startsWith('/') ? path : '/' + path}`;
+        }
+
+        // API Endpoint Configuration State (liste + suppression) — dérivé de API_BASE_URL
+        let API_CONFIG = {
+            url: buildApiUrl(ROUTES.list),
+            deleteUrlPattern: buildApiUrl(ROUTES.userDelete)
+        };
+
+        // Authentication State (JWT access + refresh tokens)
+        let AUTH_CONFIG = {
+            accessToken: localStorage.getItem('access_token') || '',
+            refreshToken: localStorage.getItem('refresh_token') || '',
+            username: localStorage.getItem('auth_username') || ''
+        };
+        let tokenRefreshTimer = null;
+        const REFRESH_MARGIN_MS = 30000; // renouvelle 30s avant l'expiration du token
+
+        // Auto-Refresh & Timer State
+        let autoRefreshEnabled = true;
+        let autoRefreshInterval = parseInt(localStorage.getItem('auto_refresh_sec')) || 5; // Default 5s
+        let countdownSeconds = autoRefreshInterval;
+        let autoRefreshTimer = null;
+        let isFetching = false;
+
+        // Data State Management
+        let pendingUsers = [];
+        let filteredUsers = [];
+        let activeModalUser = null;
+        let userToDelete = null;
+
+        window.onload = function() {
+
+            // Load saved config into settings input (une seule route principale)
+            document.getElementById('api-base-url-input').value = API_BASE_URL;
+            document.getElementById('auto-refresh-interval').value = autoRefreshInterval;
+
+            updateApiUrlDisplay();
+            initSession();
+        };
+
+        // --- AUTHENTIFICATION (JWT via /api/token/ et /api/token/refresh/) ---
+
+        // Point d'entrée au chargement : tente de restaurer une session existante,
+        // sinon affiche le formulaire de connexion.
+        async function initSession() {
+            if (AUTH_CONFIG.accessToken && !isTokenExpired(AUTH_CONFIG.accessToken)) {
+                onAuthenticated();
+                return;
+            }
+            if (AUTH_CONFIG.refreshToken) {
+                const ok = await refreshAccessToken();
+                if (ok) {
+                    onAuthenticated();
+                    return;
+                }
+            }
+            showLoginModal();
+        }
+
+        function onAuthenticated() {
+            hideLoginModal();
+            updateSessionBadge();
+            scheduleTokenRefresh(AUTH_CONFIG.accessToken);
+            fetchPendingUsersFromAPI(false);
+            startAutoRefreshEngine();
+        }
+
+        function showLoginModal(errorMessage) {
+            document.getElementById('login-modal').classList.remove('hidden');
+            const errBox = document.getElementById('login-error-box');
+            if (errorMessage) {
+                errBox.innerText = errorMessage;
+                errBox.classList.remove('hidden');
+            } else {
+                errBox.classList.add('hidden');
+            }
+            updateStatusBadge('error', 'Non connecté');
+        }
+
+        function hideLoginModal() {
+            document.getElementById('login-modal').classList.add('hidden');
+        }
+
+        async function handleLoginSubmit(e) {
+            e.preventDefault();
+            const username = document.getElementById('login-username-input').value.trim();
+            const password = document.getElementById('login-password-input').value;
+
+            const btn = document.getElementById('login-submit-btn');
+            const icon = document.getElementById('login-submit-icon');
+            const text = document.getElementById('login-submit-text');
+            btn.disabled = true;
+            icon.className = "fa-solid fa-spinner animate-spin";
+            text.innerText = "Connexion en cours...";
+
+            try {
+                const resp = await fetch(buildApiUrl(ROUTES.tokenObtain), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                if (!resp.ok) {
+                    if (resp.status === 401 || resp.status === 400) {
+                        throw new Error("Nom d'utilisateur ou mot de passe incorrect.");
+                    }
+                    throw new Error(`Erreur serveur (HTTP ${resp.status})`);
+                }
+
+                const data = await resp.json();
+                if (!data.access || !data.refresh) {
+                    throw new Error("Réponse inattendue du serveur d'authentification.");
+                }
+
+                setTokens(data.access, data.refresh);
+                AUTH_CONFIG.username = username;
+                localStorage.setItem('auth_username', username);
+
+                document.getElementById('login-password-input').value = '';
+                showToast("Connexion réussie", "success");
+                onAuthenticated();
+
+            } catch (error) {
+                console.error("Login error:", error);
+                showLoginModal(error.message || "Impossible de se connecter au serveur.");
+            } finally {
+                btn.disabled = false;
+                icon.className = "fa-solid fa-right-to-bracket";
+                text.innerText = "Se connecter";
+            }
+        }
+
+        function setTokens(access, refresh) {
+            AUTH_CONFIG.accessToken = access;
+            localStorage.setItem('access_token', access);
+            if (refresh) {
+                AUTH_CONFIG.refreshToken = refresh;
+                localStorage.setItem('refresh_token', refresh);
+            }
+        }
+
+        function logoutUser() {
+            AUTH_CONFIG.accessToken = '';
+            AUTH_CONFIG.refreshToken = '';
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            if (tokenRefreshTimer) clearTimeout(tokenRefreshTimer);
+            if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+
+            pendingUsers = [];
+            filteredUsers = [];
+            renderGridCards();
+            updateStats();
+
+            document.getElementById('session-badge').classList.add('hidden');
+            document.getElementById('session-badge').classList.remove('flex');
+            showLoginModal();
+        }
+
+        function updateSessionBadge() {
+            const badge = document.getElementById('session-badge');
+            document.getElementById('session-username').innerText = AUTH_CONFIG.username || 'Utilisateur';
+            badge.classList.remove('hidden');
+            badge.classList.add('flex');
+        }
+
+        // Décode le payload d'un JWT (sans vérification de signature - usage client uniquement)
+        function decodeJwtPayload(token) {
+            try {
+                const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+                return JSON.parse(decodeURIComponent(escape(atob(base64))));
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function isTokenExpired(token) {
+            const payload = decodeJwtPayload(token);
+            if (!payload || !payload.exp) return true;
+            return (Date.now() / 1000) >= payload.exp;
+        }
+
+        // Programme le renouvellement automatique du token d'accès, un peu avant son expiration
+        function scheduleTokenRefresh(accessToken) {
+            if (tokenRefreshTimer) clearTimeout(tokenRefreshTimer);
+            const payload = decodeJwtPayload(accessToken);
+            if (!payload || !payload.exp) return;
+
+            const msUntilExpiry = (payload.exp * 1000) - Date.now();
+            const msUntilRefresh = Math.max(msUntilExpiry - REFRESH_MARGIN_MS, 5000);
+
+            tokenRefreshTimer = setTimeout(async () => {
+                await refreshAccessToken();
+            }, msUntilRefresh);
+        }
+
+        // Appelle /api/token/refresh/ avec le refresh token stocké
+        async function refreshAccessToken() {
+            if (!AUTH_CONFIG.refreshToken) return false;
+
+            try {
+                const resp = await fetch(buildApiUrl(ROUTES.tokenRefresh), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ refresh: AUTH_CONFIG.refreshToken })
+                });
+
+                if (!resp.ok) throw new Error(`Refresh HTTP ${resp.status}`);
+
+                const data = await resp.json();
+                if (!data.access) throw new Error("Pas de token d'accès retourné.");
+
+                // Si la rotation des refresh tokens est activée côté serveur, un nouveau refresh est renvoyé
+                setTokens(data.access, data.refresh || null);
+                scheduleTokenRefresh(data.access);
+                return true;
+
+            } catch (error) {
+                console.warn("Impossible de renouveler le token :", error.message);
+                logoutUser();
+                showLoginModal("Votre session a expiré, veuillez vous reconnecter.");
+                return false;
+            }
+        }
+
+        function getAuthHeaders() {
+            const headers = { 'Accept': 'application/json', 'Content-Type': 'application/json' };
+            if (AUTH_CONFIG.accessToken) headers['Authorization'] = `Bearer ${AUTH_CONFIG.accessToken}`;
+            return headers;
+        }
+
+        // --- SMART AUTO-REFRESH ENGINE (données liste-pending) ---
+        function startAutoRefreshEngine() {
+            if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+
+            countdownSeconds = autoRefreshInterval;
+            updateTimerUI();
+
+            autoRefreshTimer = setInterval(() => {
+                if (!autoRefreshEnabled) return;
+                if (!AUTH_CONFIG.accessToken) return;
+
+                // SMART PAUSE CONDITIONS: Don't interrupt user manual actions
+                if (isUserInteracting()) {
+                    // User is typing, viewing modal, or confirming delete -> temporarily hold countdown
+                    return;
+                }
+
+                countdownSeconds--;
+                updateTimerUI();
+
+                if (countdownSeconds <= 0) {
+                    countdownSeconds = autoRefreshInterval;
+                    // Trigger silent background API refresh (doesn't trigger full loading screens)
+                    fetchPendingUsersFromAPI(true);
+                }
+            }, 1000);
+        }
+
+        // Check if user is currently performing manual actions
+        function isUserInteracting() {
+            const activeEl = document.activeElement;
+            const isTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT' || activeEl.tagName === 'TEXTAREA');
+            const isModalOpen = !document.getElementById('user-modal').classList.contains('hidden') ||
+                                !document.getElementById('api-settings-modal').classList.contains('hidden') ||
+                                !document.getElementById('delete-confirm-modal').classList.contains('hidden') ||
+                                !document.getElementById('login-modal').classList.contains('hidden');
+
+            return isTyping || isModalOpen || isFetching;
+        }
+
+        function toggleAutoRefresh(enabled) {
+            autoRefreshEnabled = enabled;
+            const badge = document.getElementById('auto-refresh-status-badge');
+            const icon = document.getElementById('auto-refresh-icon');
+
+            if (enabled) {
+                badge.className = "px-2.5 py-1 text-[11px] font-bold text-emerald-700 bg-emerald-100 rounded-lg flex items-center gap-1.5 border border-emerald-200";
+                badge.innerHTML = `<i class="fa-solid fa-circle text-[8px] animate-pulse"></i> Auto-Sync Actif`;
+                icon.classList.remove('text-slate-400');
+                icon.classList.add('text-brand-600');
+                showToast("Rafraîchissement automatique activé", "info");
+
+                // Avant, la réactivation se contentait de repositionner le drapeau
+                // "autoRefreshEnabled" et laissait le compte à rebours reprendre là où
+                // il s'était figé pendant la pause : rien ne se passait visiblement
+                // avant la fin de l'intervalle complet, ce qui donnait l'impression
+                // que le rafraîchissement était cassé. On relance maintenant le moteur
+                // proprement (minuteur remis à zéro) ET on déclenche un fetch immédiat
+                // si aucune requête n'est déjà en cours et que l'utilisateur est connecté.
+                startAutoRefreshEngine();
+                if (!isFetching && AUTH_CONFIG.accessToken) {
+                    fetchPendingUsersFromAPI(true);
+                }
+            } else {
+                badge.className = "px-2.5 py-1 text-[11px] font-bold text-slate-600 bg-slate-200 rounded-lg flex items-center gap-1.5 border border-slate-300";
+                badge.innerHTML = `<i class="fa-solid fa-circle text-[8px]"></i> Auto-Sync Désactivé`;
+                icon.classList.remove('text-brand-600');
+                icon.classList.add('text-slate-400');
+                showToast("Rafraîchissement automatique en pause", "warning");
+
+                // On arrête complètement le minuteur pendant la pause au lieu de le
+                // laisser tourner "à vide" en arrière-plan.
+                if (autoRefreshTimer) {
+                    clearInterval(autoRefreshTimer);
+                    autoRefreshTimer = null;
+                }
+            }
+        }
+
+        function changeAutoRefreshInterval(val) {
+            autoRefreshInterval = parseInt(val) || 5;
+            localStorage.setItem('auto_refresh_sec', autoRefreshInterval);
+            countdownSeconds = autoRefreshInterval;
+            updateTimerUI();
+            showToast(`Intervalle d'auto-sync réglé sur ${autoRefreshInterval}s`, "info");
+        }
+
+        function updateTimerUI() {
+            document.getElementById('auto-refresh-countdown').innerText = `${countdownSeconds}s`;
+
+            // Progress Ring Math
+            const circle = document.getElementById('timer-progress-ring');
+            if (circle) {
+                const radius = 9;
+                const circumference = 2 * Math.PI * radius; // ~56.54
+                const progress = countdownSeconds / autoRefreshInterval;
+                const strokeDashoffset = circumference - (progress * circumference);
+                circle.style.strokeDashoffset = strokeDashoffset;
+            }
+        }
+
+        // Core Async API Fetch Function (Supports both full refresh and silent auto-sync)
+        async function fetchPendingUsersFromAPI(isSilent = false, isRetryAfterRefresh = false) {
+            if (isFetching) return;
+            if (!AUTH_CONFIG.accessToken) { showLoginModal(); return; }
+            isFetching = true;
+
+            const loadingState = document.getElementById('loading-state');
+            const errorState = document.getElementById('error-state');
+            const gridView = document.getElementById('grid-view');
+            const emptyState = document.getElementById('empty-state');
+            const refreshIcon = document.getElementById('refresh-icon');
+
+            // Show full spinner only on manual explicit fetch and if grid is empty
+            if (!isSilent && pendingUsers.length === 0) {
+                loadingState.classList.remove('hidden');
+                errorState.classList.add('hidden');
+                gridView.classList.add('hidden');
+                emptyState.classList.add('hidden');
+            }
+
+            if (refreshIcon) refreshIcon.classList.add('animate-spin');
+            updateStatusBadge('loading', 'Connexion en cours...');
+
+            try {
+                const response = await fetch(API_CONFIG.url, {
+                    method: 'GET',
+                    headers: getAuthHeaders()
+                });
+
+                // Token expiré / invalide -> tente un renouvellement puis rejoue la requête une fois
+                if (response.status === 401 && !isRetryAfterRefresh) {
+                    isFetching = false;
+                    const refreshed = await refreshAccessToken();
+                    if (refreshed) {
+                        return fetchPendingUsersFromAPI(isSilent, true);
+                    }
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error(`Erreur HTTP ${response.status} : ${response.statusText}`);
+                }
+
+                const data = await response.json();
+
+                // Standardize Array Response
+                if (Array.isArray(data)) {
+                    pendingUsers = data;
+                } else if (data && Array.isArray(data.results)) {
+                    pendingUsers = data.results;
+                } else if (data && Array.isArray(data.data)) {
+                    pendingUsers = data.data;
+                } else {
+                    throw new Error("Le format retourné par l'API n'est pas un tableau d'utilisateurs.");
+                }
+
+                updateStatusBadge('success', `${pendingUsers.length} utilisateur(s) chargé(s)`);
+
+                if (!isSilent) {
+                    showToast(`${pendingUsers.length} utilisateur(s) chargé(s) avec succès`, 'success');
+                }
+
+                // Preserve filters & scroll position during silent updates
+                applyFilters();
+
+            } catch (error) {
+                console.error("API Fetch Error:", error);
+
+                // If it was a manual refresh, show the error state UI
+                if (!isSilent || pendingUsers.length === 0) {
+                    document.getElementById('error-message-text').innerText = error.message || "Erreur de communication avec le serveur.";
+                    errorState.classList.remove('hidden');
+                    gridView.classList.add('hidden');
+                }
+
+                updateStatusBadge('error', 'Erreur de connexion');
+                if (!isSilent) showToast("Échec du chargement API", "warning");
+            } finally {
+                isFetching = false;
+                loadingState.classList.add('hidden');
+                if (refreshIcon) refreshIcon.classList.remove('animate-spin');
+            }
+        }
+
+        // --- USER DELETION FEATURE (confirmation simple) ---
+
+        // Ouvre la modale de confirmation simple
+        function openDeleteConfirmationModal(user) {
+            if (!user) return;
+            userToDelete = user;
+
+            const fullName = `${user.first_name && user.first_name !== 'string' ? user.first_name : ''} ${user.last_name && user.last_name !== 'string' ? user.last_name : ''}`.trim() || user.username || 'Sans nom';
+            const avatarUrl = user.photo_de_profil && user.photo_de_profil !== 'string' ? user.photo_de_profil : `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=ef4444&color=fff`;
+
+            // Render Target User Info
+            document.getElementById('delete-user-avatar').src = avatarUrl;
+            document.getElementById('delete-user-id').innerText = `ID: #${user.id !== undefined ? user.id : 0}`;
+            document.getElementById('delete-user-fullname').innerText = fullName;
+            document.getElementById('delete-user-username').innerText = `@${user.username || 'username'}`;
+
+            const deleteBtn = document.getElementById('final-delete-btn');
+            deleteBtn.disabled = false;
+            document.getElementById('delete-btn-text').innerText = "Supprimer";
+            document.getElementById('delete-btn-icon').className = "fa-solid fa-trash-can";
+
+            document.getElementById('delete-confirm-modal').classList.remove('hidden');
+            
+        }
+
+        function triggerDeleteFromModal() {
+            // BUG corrigé : closeUserModal() remet activeModalUser à null.
+            // Avant, on appelait closeUserModal() PUIS on lisait activeModalUser,
+            // qui valait donc déjà null -> openDeleteConfirmationModal(null) ne faisait
+            // rien, donc le clic sur "Supprimer cet utilisateur" dans la fiche agrandie
+            // ne déclenchait jamais la modale de confirmation.
+            if (!activeModalUser) return;
+            const userToTarget = activeModalUser;
+            closeUserModal();
+            openDeleteConfirmationModal(userToTarget);
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('delete-confirm-modal').classList.add('hidden');
+            userToDelete = null;
+        }
+
+        function getFormattedDeleteUrl(userId) {
+            if (API_CONFIG.deleteUrlPattern.includes('{id}')) {
+                return API_CONFIG.deleteUrlPattern.replace('{id}', userId);
+            }
+            // Fallback: append /api/users/id/
+            return `${API_CONFIG.deleteUrlPattern.replace(/\/$/, '')}/${userId}/`;
+        }
+
+        // Exécution : appelle l'API DELETE /api/users/{id}/ après confirmation simple
+        async function executeDeleteUserAPI(isRetryAfterRefresh = false) {
+            if (!userToDelete) return;
+            if (!AUTH_CONFIG.accessToken) { showLoginModal(); return; }
+
+            const deleteBtn = document.getElementById('final-delete-btn');
+            const deleteIcon = document.getElementById('delete-btn-icon');
+            const deleteText = document.getElementById('delete-btn-text');
+
+            // UI Loading state on button
+            deleteBtn.disabled = true;
+            deleteIcon.className = "fa-solid fa-spinner animate-spin";
+            deleteText.innerText = "Suppression en cours...";
+
+            const targetId = userToDelete.id;
+            const targetUrl = getFormattedDeleteUrl(targetId);
+
+            try {
+                const response = await fetch(targetUrl, {
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
+                });
+
+                if (response.status === 401 && !isRetryAfterRefresh) {
+                    const refreshed = await refreshAccessToken();
+                    if (refreshed) {
+                        return executeDeleteUserAPI(true);
+                    }
+                    return;
+                }
+
+                if (!response.ok && response.status !== 204 && response.status !== 200) {
+                    throw new Error(`Échec de la suppression (Code HTTP ${response.status})`);
+                }
+
+                // Succès confirmé par le serveur : mise à jour locale immédiate...
+                pendingUsers = pendingUsers.filter(u => u.id !== targetId);
+                applyFilters();
+
+                showToast(`Utilisateur #${targetId} supprimé avec succès`, "success");
+                closeDeleteModal();
+
+                // ...puis resynchronisation silencieuse avec le serveur pour être certain
+                // que l'interface reflète exactement l'état réel du backend.
+                fetchPendingUsersFromAPI(true);
+
+            } catch (error) {
+                console.error("API Delete Error:", error);
+
+                // IMPORTANT : on ne supprime JAMAIS l'utilisateur de la liste locale ici.
+                // Avant, une erreur serveur (403, 404, 500...) ou réseau était silencieusement
+                // traitée comme un succès (suppression "locale seulement"), ce qui affichait
+                // un message de succès trompeur alors que l'utilisateur n'était PAS supprimé
+                // côté serveur. On affiche maintenant une vraie erreur et on garde l'utilisateur
+                // dans la liste, pour rester cohérent avec l'état réel du backend.
+                const isNetworkError = error instanceof TypeError; // ex: "Failed to fetch" (serveur injoignable / CORS)
+                const message = isNetworkError
+                    ? "Impossible de contacter le serveur (réseau/CORS). L'utilisateur n'a pas été supprimé."
+                    : `Échec de la suppression : ${error.message}`;
+
+                showToast(message, "warning");
+                deleteBtn.disabled = false;
+                deleteIcon.className = "fa-solid fa-trash-can";
+                deleteText.innerText = "Supprimer";
+            }
+        }
+
+        // Apply Filters & Search
+        function applyFilters() {
+            const searchQuery = document.getElementById('search-input').value.toLowerCase().trim();
+            const sexeFilter = document.getElementById('filter-sexe').value;
+            const dateFilter = document.getElementById('filter-date').value;
+
+            filteredUsers = pendingUsers.filter(user => {
+                const fullName = `${user.first_name && user.first_name !== 'string' ? user.first_name : ''} ${user.last_name && user.last_name !== 'string' ? user.last_name : ''}`.toLowerCase();
+
+                const matchesSearch = !searchQuery ||
+                    (user.id !== undefined && user.id.toString().includes(searchQuery)) ||
+                    fullName.includes(searchQuery) ||
+                    (user.username && user.username.toLowerCase().includes(searchQuery)) ||
+                    (user.email && user.email.toLowerCase().includes(searchQuery)) ||
+                    (user.matricule && user.matricule.toLowerCase().includes(searchQuery)) ||
+                    (user.telephone && user.telephone.toLowerCase().includes(searchQuery)) ||
+                    (user.activation_code && user.activation_code.toLowerCase().includes(searchQuery));
+
+                const matchesSexe = !sexeFilter || user.sexe === sexeFilter;
+
+                let matchesDate = true;
+                if (dateFilter !== 'all' && user.created_at) {
+                    const createdDate = new Date(user.created_at);
+                    const now = new Date();
+                    if (dateFilter === 'today') {
+                        matchesDate = createdDate.toDateString() === now.toDateString();
+                    } else if (dateFilter === '7days') {
+                        const sevenDaysAgo = new Date();
+                        sevenDaysAgo.setDate(now.getDate() - 7);
+                        matchesDate = createdDate >= sevenDaysAgo;
+                    }
+                }
+
+                return matchesSearch && matchesSexe && matchesDate;
+            });
+
+            updateStats();
+            renderGridCards();
+        }
+
+        function updateStats() {
+            document.getElementById('stat-total-pending').innerText = pendingUsers.length;
+
+            const males = pendingUsers.filter(u => u.sexe === 'H').length;
+            const females = pendingUsers.filter(u => u.sexe === 'F').length;
+            document.getElementById('stat-gender').innerText = `${males} Hommes / ${females} Femmes`;
+        }
+
+        // Render Cards Grid
+        function renderGridCards() {
+            const gridView = document.getElementById('grid-view');
+            const emptyState = document.getElementById('empty-state');
+
+            gridView.innerHTML = '';
+
+            if (filteredUsers.length === 0) {
+                emptyState.classList.remove('hidden');
+                gridView.classList.add('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            gridView.classList.remove('hidden');
+
+            filteredUsers.forEach(user => {
+                const fullName = `${user.first_name && user.first_name !== 'string' ? user.first_name : ''} ${user.last_name && user.last_name !== 'string' ? user.last_name : ''}`.trim() || user.username || 'Sans nom';
+                const avatarUrl = user.photo_de_profil && user.photo_de_profil !== 'string' ? user.photo_de_profil : `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=3b82f6&color=fff`;
+
+                const card = document.createElement('div');
+                card.className = "bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md hover:border-brand-300 cursor-pointer transition-all flex flex-col justify-between group relative overflow-hidden";
+
+                // Click card opens enlarged detail modal
+                card.onclick = () => {
+                    openUserModal(user);
+                };
+
+                card.innerHTML = `
+                    <div class="space-y-4">
+                        <!-- Top Header: Avatar + ID + Sexe + Score + Quick Delete -->
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="flex items-center gap-3">
+                                <!-- Avatar opens direct photo link -->
+                                <div class="relative group/avatar flex-shrink-0" onclick="event.stopPropagation(); window.open('${avatarUrl}', '_blank')" title="Ouvrir le lien direct de la photo">
+                                    <img src="${avatarUrl}" onerror="this.src='https://placehold.co/100x100/3b82f6/fff?text=U'" class="w-12 h-12 rounded-xl object-cover border border-slate-200 shadow-sm cursor-pointer group-hover/avatar:brightness-90 transition-all">
+                                    <div class="absolute inset-0 bg-slate-900/50 rounded-xl opacity-0 group-hover/avatar:opacity-100 flex items-center justify-center transition-opacity text-white text-xs">
+                                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-[10px] font-mono font-bold px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded border border-slate-200">ID: #${user.id !== undefined ? user.id : 0}</span>
+                                        <span class="text-[10px] font-bold px-1.5 py-0.5 rounded ${user.sexe === 'H' ? 'bg-blue-100 text-blue-700' : 'bg-pink-100 text-pink-700'}">${user.sexe || 'N/A'}</span>
+                                    </div>
+                                    <h4 class="font-bold text-slate-900 leading-tight mt-1 group-hover:text-brand-600 transition-colors">${fullName}</h4>
+                                    <p class="text-[11px] text-slate-400 font-mono">@${user.username || 'username'}</p>
+                                </div>
+                            </div>
+
+                            <!-- Score & Quick Delete Button -->
+                            <div class="flex flex-col items-end gap-1.5">
+                                <button onclick="event.stopPropagation(); openDeleteConfirmationModal(${JSON.stringify(user).replace(/"/g, '&quot;')})"
+                                    title="Supprimer cet utilisateur"
+                                    class="w-7 h-7 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 flex items-center justify-center transition-all">
+                                    <i class="fa-solid fa-trash-can text-xs"></i>
+                                </button>
+                                <span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-100">${user.score !== undefined ? user.score : 0}</span>
+                            </div>
+                        </div>
+
+                        <!-- Priority Fields Box -->
+                        <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-2 text-xs">
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <span class="text-[10px] text-slate-400 block font-medium">Matricule</span>
+                                    <span class="font-mono font-bold text-slate-800">${user.matricule && user.matricule !== 'string' ? user.matricule : 'Non renseigné'}</span>
+                                </div>
+                                <div>
+                                    <span class="text-[10px] text-slate-400 block font-medium">Téléphone</span>
+                                    <span class="font-medium text-slate-800">${user.telephone && user.telephone !== 'string' ? user.telephone : 'Non renseigné'}</span>
+                                </div>
+                            </div>
+
+                            <div>
+                                <span class="text-[10px] text-slate-400 block font-medium">Email</span>
+                                <p class="font-medium text-slate-800 truncate">${user.email && user.email !== 'string' ? user.email : 'Non renseigné'}</p>
+                            </div>
+                        </div>
+
+                        <!-- Code Activation Block -->
+                        <div class="p-2.5 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between">
+                            <span class="text-[10px] font-bold text-amber-800 uppercase tracking-wider">Code Activation</span>
+                            <div class="flex items-center gap-2">
+                                <code class="font-mono font-bold text-amber-900 text-xs">${user.activation_code || 'SANS_CODE'}</code>
+                                <button onclick="event.stopPropagation(); copyToClipboard('${user.activation_code}')" title="Copier le code" class="text-amber-700 hover:text-amber-900 text-xs p-1">
+                                    <i class="fa-regular fa-copy"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card Footer Actions -->
+                    <div class="pt-3 mt-4 border-t border-slate-100 flex items-center justify-between text-xs">
+                        <span class="text-[11px] text-brand-600 font-semibold flex items-center gap-1">
+                            <i class="fa-solid fa-up-right-and-down-left-from-center text-[10px]"></i> Clic pour agrandir
+                        </span>
+                        <span class="text-[11px] text-slate-400 font-medium group-hover:text-slate-600 transition-colors">Voir fiche <i class="fa-solid fa-chevron-right text-[10px] ml-0.5"></i></span>
+                    </div>
+                `;
+                gridView.appendChild(card);
+            });
+        }
+
+        // Open User Modal
+        function openUserModal(user) {
+            if (!user) return;
+            activeModalUser = user;
+
+            const fullName = `${user.first_name && user.first_name !== 'string' ? user.first_name : ''} ${user.last_name && user.last_name !== 'string' ? user.last_name : ''}`.trim() || user.username || 'Sans nom';
+            const avatarUrl = user.photo_de_profil && user.photo_de_profil !== 'string' ? user.photo_de_profil : `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=3b82f6&color=fff`;
+
+            const modalImg = document.getElementById('modal-avatar-img');
+            modalImg.src = avatarUrl;
+
+            const modalAvatarLink = document.getElementById('modal-avatar-link');
+            if (modalAvatarLink) modalAvatarLink.href = avatarUrl;
+
+            document.getElementById('modal-id-badge').innerText = `ID: #${user.id !== undefined ? user.id : 0}`;
+
+            const sexeBadge = document.getElementById('modal-sexe-badge');
+            sexeBadge.innerText = user.sexe || 'N/A';
+            sexeBadge.className = `px-2 py-0.5 text-[10px] font-bold rounded-md uppercase ${user.sexe === 'H' ? 'bg-blue-500/30 text-blue-200' : 'bg-pink-500/30 text-pink-200'}`;
+
+            document.getElementById('modal-user-fullname').innerText = fullName;
+            document.getElementById('modal-user-username').innerText = `@${user.username || 'username'}`;
+
+            document.getElementById('modal-activation-code').innerText = user.activation_code || 'SANS_CODE';
+            document.getElementById('modal-score').innerText = user.score !== undefined ? user.score : 0;
+
+            document.getElementById('modal-email').innerText = user.email && user.email !== 'string' ? user.email : 'Non renseigné';
+            document.getElementById('modal-telephone').innerText = user.telephone && user.telephone !== 'string' ? user.telephone : 'Non renseigné';
+            document.getElementById('modal-matricule').innerText = user.matricule && user.matricule !== 'string' ? user.matricule : 'Non spécifié';
+            document.getElementById('modal-sexe-full').innerText = user.sexe === 'H' ? 'Homme (H)' : user.sexe === 'F' ? 'Femme (F)' : user.sexe || 'Non spécifié';
+
+            document.getElementById('modal-created-at').innerText = formatDate(user.created_at);
+            document.getElementById('modal-updated-at').innerText = formatDate(user.updated_at);
+
+            document.getElementById('user-modal').classList.remove('hidden');
+        }
+
+        function closeUserModal() {
+            document.getElementById('user-modal').classList.add('hidden');
+            activeModalUser = null;
+        }
+
+        function handleModalBackdropClick(e) {
+            if (e.target.id === 'user-modal') closeUserModal();
+        }
+
+        // Settings Modal Handlers
+        function toggleApiSettingsModal() {
+            const modal = document.getElementById('api-settings-modal');
+            modal.classList.toggle('hidden');
+        }
+
+        function saveApiConfig(e) {
+            e.preventDefault();
+
+            const newBase = document.getElementById('api-base-url-input').value.trim().replace(/\/+$/, '');
+            if (!newBase) return;
+
+            API_BASE_URL = newBase;
+            localStorage.setItem('api_base_url', API_BASE_URL);
+
+            // Toutes les routes sont régénérées automatiquement à partir de la nouvelle base
+            API_CONFIG.url = buildApiUrl(ROUTES.list);
+            API_CONFIG.deleteUrlPattern = buildApiUrl(ROUTES.userDelete);
+
+            updateApiUrlDisplay();
+            toggleApiSettingsModal();
+
+            if (AUTH_CONFIG.accessToken) {
+                fetchPendingUsersFromAPI(false);
+            } else {
+                showLoginModal();
+            }
+        }
+
+        function updateApiUrlDisplay() {
+            document.getElementById('current-api-url-display').innerHTML = `Route principale : <code class="font-mono bg-white px-2 py-0.5 rounded text-brand-900 font-bold border border-brand-200">${API_BASE_URL}</code> — Liste : <code class="font-mono bg-white px-1.5 py-0.5 rounded text-brand-900 border border-brand-200">${ROUTES.list}</code> · Suppression : <code class="font-mono bg-white px-1.5 py-0.5 rounded text-red-700 border border-red-200">${ROUTES.userDelete}</code>`;
+        }
+
+
+        function updateStatusBadge(status, text) {
+            const dot = document.getElementById('api-status-dot');
+            const textEl = document.getElementById('api-status-text');
+
+            if (status === 'success') {
+                dot.className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
+            } else if (status === 'error') {
+                dot.className = "w-2 h-2 rounded-full bg-red-500";
+            } else {
+                dot.className = "w-2 h-2 rounded-full bg-amber-500 animate-ping";
+            }
+
+            textEl.innerText = text;
+        }
+
+        // Mock Fallback Data (For quick UI testing)
+        function loadMockDataForTesting() {
+            pendingUsers = [
+                {
+                    "id": 101,
+                    "username": "koffi_mensah229",
+                    "email": "koffi.mensah@example.com",
+                    "matricule": "MAT-2026-8841",
+                    "photo_de_profil": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
+                    "telephone": "+229 97 00 11 22",
+                    "sexe": "H",
+                    "score": 1500,
+                    "created_at": new Date().toISOString(),
+                    "updated_at": new Date().toISOString(),
+                    "first_name": "Koffi",
+                    "last_name": "Mensah",
+                    "activation_code": "ACT-7492"
+                },
+                {
+                    "id": 102,
+                    "username": "aminata_diallo99",
+                    "email": "aminata.diallo@example.org",
+                    "matricule": "MAT-2026-3021",
+                    "photo_de_profil": "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80",
+                    "telephone": "+225 07 44 55 66",
+                    "sexe": "F",
+                    "score": 2100,
+                    "created_at": new Date(Date.now() - 3600000 * 4).toISOString(),
+                    "updated_at": new Date(Date.now() - 3600000 * 4).toISOString(),
+                    "first_name": "Aminata",
+                    "last_name": "Diallo",
+                    "activation_code": "ACT-3910"
+                },
+                {
+                    "id": 103,
+                    "username": "jean_dupont_bj",
+                    "email": "jean.dupont@test.com",
+                    "matricule": "MAT-2026-9055",
+                    "photo_de_profil": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+                    "telephone": "+229 96 12 34 56",
+                    "sexe": "H",
+                    "score": 850,
+                    "created_at": new Date(Date.now() - 86400000 * 2).toISOString(),
+                    "updated_at": new Date(Date.now() - 86400000 * 2).toISOString(),
+                    "first_name": "Jean",
+                    "last_name": "Dupont",
+                    "activation_code": "ACT-1102"
+                }
+            ];
+
+            document.getElementById('error-state').classList.add('hidden');
+            document.getElementById('loading-state').classList.add('hidden');
+            const apiSettingsModal = document.getElementById('api-settings-modal');
+            if (!apiSettingsModal.classList.contains('hidden')) apiSettingsModal.classList.add('hidden');
+            hideLoginModal();
+
+            updateStatusBadge('success', 'Données de test chargées');
+            showToast("Données démo chargées avec succès", "info");
+            applyFilters();
+        }
+
+        // Helpers & UI Utilities
+        function resetFilters() {
+            document.getElementById('search-input').value = '';
+            document.getElementById('filter-sexe').value = '';
+            document.getElementById('filter-date').value = 'all';
+            applyFilters();
+        }
+
+        function copyModalActivationCode() {
+            if (activeModalUser && activeModalUser.activation_code) {
+                copyToClipboard(activeModalUser.activation_code);
+            }
+        }
+
+        function copyToClipboard(text) {
+            if (!text || text === 'string') return;
+            const el = document.createElement('textarea');
+            el.value = text;
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
+            showToast(`Code copié : ${text}`, "info");
+        }
+
+        function formatDate(isoStr) {
+            if (!isoStr || isoStr === 'string') return 'Date inconnue';
+            try {
+                const d = new Date(isoStr);
+                return d.toLocaleDateString('fr-FR', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            } catch (e) {
+                return isoStr;
+            }
+        }
+
+        function showToast(message, type = "info") {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+
+            let bgColors = "bg-slate-900 text-white";
+            let icon = "fa-circle-info";
+
+            if (type === "success") {
+                bgColors = "bg-emerald-600 text-white shadow-emerald-500/20";
+                icon = "fa-circle-check";
+            } else if (type === "warning") {
+                bgColors = "bg-amber-600 text-white shadow-amber-500/20";
+                icon = "fa-triangle-exclamation";
+            }
+
+            toast.className = `pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg ${bgColors} text-xs font-semibold transition-all transform translate-y-2 duration-200`;
+            toast.innerHTML = `<i class="fa-solid ${icon} text-sm"></i> <span>${message}</span>`;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', '-translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+    </script>
+</body>
+</html>

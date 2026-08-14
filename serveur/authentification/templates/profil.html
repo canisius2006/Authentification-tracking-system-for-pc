@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="fr" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profil Utilisateur</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+
+</head>
+<body class="font-sans antialiased min-h-full flex flex-col justify-between text-slate-800 bg-gradient-to-br from-slate-100 via-indigo-50/30 to-slate-100">
+
+    <header class="w-full bg-white/80 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-50">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-200">
+                    <i class="fa-solid fa-user text-sm"></i>
+                </div>
+                <span class="font-semibold text-slate-800 text-lg tracking-tight">Fiche Utilisateur</span>
+            </div>
+            
+            <!-- Actions rapides d'en-tête & Status API -->
+            <div class="flex items-center space-x-3">
+                <div id="api-status-badge" class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                    <span class="w-2 h-2 rounded-full bg-amber-500 mr-1.5 animate-pulse"></span>
+                    <span id="api-status-text">Connexion...</span>
+                </div>
+                
+                <!-- Bouton Rafraîchir -->
+                <button onclick="fetchUserProfile()" class="p-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 rounded-xl transition-all" title="Actualiser les données">
+                    <i class="fa-solid fa-rotate-right text-sm"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full flex-grow">
+        
+        <!-- Toast Notification for Copy -->
+        <div id="toast" class="fixed bottom-6 right-6 bg-slate-900 text-white px-4 py-2.5 rounded-xl shadow-xl flex items-center space-x-2 text-sm font-medium transition-all duration-300 opacity-0 transform translate-y-4 pointer-events-none z-50">
+            <i id="toast-icon" class="fa-solid fa-circle-check text-emerald-400"></i>
+            <span id="toast-message">Copié !</span>
+        </div>
+
+        <!-- Banner Alerte Erreur (Production: Ne dévoile aucune URL) -->
+        <div id="api-error-banner" class="hidden mb-6 p-4 rounded-2xl bg-red-50 border border-red-200 text-red-800 text-sm flex items-start space-x-3">
+            <i class="fa-solid fa-triangle-exclamation text-red-500 text-lg mt-0.5"></i>
+            <div>
+                <p class="font-semibold">Une erreur est survenue</p>
+                <p id="api-error-message" class="text-xs text-red-600 mt-0.5">Impossible de récupérer les informations de cet utilisateur. Veuillez vérifier votre connexion ou réessayer plus tard.</p>
+            </div>
+        </div>
+
+        <!-- Profile Card Main Container (Caché au démarrage jusqu'à validation des données) -->
+        <div id="profile-card" class="hidden bg-white rounded-3xl shadow-xl shadow-slate-200/60 border border-slate-100 overflow-hidden">
+            
+            <div class="relative h-44 sm:h-52 bg-slate-800 overflow-hidden">
+                <!-- Photo de couverture -->
+                <img 
+                    src="https://images.unsplash.com/photo-1707343843437-caacff5cfa74?q=80&w=1200&auto=format&fit=crop" 
+                    alt="Couverture du profil" 
+                    class="w-full h-full object-cover"
+                    onerror="this.style.display='none';"
+                />
+                
+                <div class="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-slate-900/20"></div>
+
+                <!-- Matricule Mis en valeur sur l'image de couverture -->
+                <div class="absolute top-4 right-4 bg-slate-900/80 backdrop-blur-md border border-indigo-400/30 text-white px-3.5 py-2 rounded-xl shadow-lg flex items-center space-x-2">
+                    <i class="fa-solid fa-id-badge text-indigo-400 text-sm"></i>
+                    <div>
+                        <span class="text-[10px] block uppercase text-slate-400 font-bold tracking-wider leading-none">N° Matricule</span>
+                        <span id="matricule-cover" class="font-mono font-bold text-amber-300 text-sm tracking-widest">---</span>
+                    </div>
+                    <button onclick="copyCurrentMatricule()" class="ml-2 text-slate-400 hover:text-white transition-colors" title="Copier le matricule">
+                        <i class="fa-regular fa-copy text-xs"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Profile Info Banner -->
+            <div class="relative px-6 sm:px-10 pb-8">
+                <div class="flex flex-col sm:flex-row sm:items-end justify-between -mt-20 sm:-mt-24 mb-6 gap-4">
+                    
+                    <!-- Avatar utilisateur -->
+                    <div class="relative inline-block">
+                        <div class="w-32 h-32 sm:w-36 sm:h-36 rounded-2xl ring-4 ring-white bg-slate-100 shadow-xl overflow-hidden relative group">
+                            <!-- La balise img qui va accueillir l'url de la photo -->
+                            <img 
+                                id="user-avatar"
+                                src="" 
+                                alt="Photo de profil" 
+                                class="w-full h-full object-cover bg-slate-200"
+                            />
+                        </div>
+                        <span class="absolute bottom-2 right-2 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full" title="Compte Actif"></span>
+                    </div>
+
+                    <!-- Actions & Stats Badges -->
+                    <div class="flex flex-wrap items-center gap-3 mt-2 sm:mt-0">
+                        
+                        <!-- Metric Score Moral -->
+                        <div class="bg-gradient-to-br from-indigo-900 to-slate-900 text-white border border-indigo-500/30 px-5 py-2.5 rounded-2xl flex items-center space-x-3 shadow-lg shadow-indigo-900/20">
+                            <div class="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 flex items-center justify-center">
+                                <i class="fa-solid fa-scale-balanced text-lg"></i>
+                            </div>
+                            <div>
+                                <div class="flex items-center space-x-1">
+                                    <p class="text-[10px] uppercase tracking-wider font-bold text-indigo-200">Score Moral</p>
+                                    <i class="fa-solid fa-shield-heart text-[10px] text-emerald-400" title="Évaluation de la conduite morale"></i>
+                                </div>
+                                <p class="text-xl font-extrabold text-white leading-none mt-0.5">
+                                    <span id="user-score">--</span> <span class="text-xs font-medium text-indigo-300">/ 20 pts</span>
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Badge Sexe -->
+                        <div class="bg-slate-100 border border-slate-200 px-4 py-2.5 rounded-2xl flex items-center space-x-2">
+                            <div id="sexe-icon-bg" class="w-9 h-9 rounded-xl bg-slate-200 text-slate-500 flex items-center justify-center">
+                                <i id="sexe-icon" class="fa-solid fa-user text-slate-500"></i>
+                            </div>
+                            <div>
+                                <p class="text-[10px] uppercase tracking-wider font-semibold text-slate-400">Sexe</p>
+                                <p id="sexe-label" class="text-sm font-semibold text-slate-800 leading-none">---</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- En-tête Nom + Username + Matricule -->
+                <div class="border-b border-slate-100 pb-6 mb-8">
+                    <div class="flex flex-wrap items-center gap-3">
+                        <h1 id="user-fullname" class="text-2xl sm:text-3xl font-bold text-slate-900">Chargement...</h1>
+                    </div>
+                    
+                    <div class="mt-2 flex flex-wrap items-center gap-4 text-sm text-slate-500">
+                        <span class="flex items-center text-slate-600 font-medium">
+                            <i class="fa-solid fa-at text-slate-400 mr-1 text-xs"></i>
+                            <span id="user-username">---</span>
+                        </span>
+                        <span>•</span>
+                        <div class="inline-flex items-center space-x-2 bg-slate-100 px-3 py-1 rounded-lg border border-slate-200">
+                            <span class="text-xs text-slate-500 font-medium">Matricule :</span>
+                            <span id="matricule-header" class="font-mono font-bold text-slate-900 tracking-wider">---</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Section: Informations Personnelles -->
+                    <div class="bg-slate-50/70 border border-slate-200/60 rounded-2xl p-5 hover:border-slate-300 transition-colors">
+                        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center space-x-2">
+                            <i class="fa-solid fa-id-card text-slate-400"></i>
+                            <span>Informations Personnelles</span>
+                        </h2>
+                        
+                        <div class="space-y-4">
+                            <div class="flex justify-between items-center py-2 border-b border-slate-200/40">
+                                <span class="text-sm text-slate-500">Prénom</span>
+                                <span id="user-firstname" class="text-sm font-semibold text-slate-800">---</span>
+                            </div>
+                            <div class="flex justify-between items-center py-2 border-b border-slate-200/40">
+                                <span class="text-sm text-slate-500">Nom de famille</span>
+                                <span id="user-lastname" class="text-sm font-semibold text-slate-800">---</span>
+                            </div>
+                            <div class="flex justify-between items-center py-2 border-b border-slate-200/40">
+                                <span class="text-sm text-slate-500">Nom d'utilisateur</span>
+                                <span id="user-username-detail" class="text-sm font-mono font-medium text-slate-800">---</span>
+                            </div>
+                            <div class="flex justify-between items-center py-2">
+                                <span class="text-sm text-slate-500">Sexe</span>
+                                <span id="user-sexe-detail" class="inline-flex items-center text-sm font-semibold text-slate-800">---</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section: Coordonnées & Contact -->
+                    <div class="bg-slate-50/70 border border-slate-200/60 rounded-2xl p-5 hover:border-slate-300 transition-colors">
+                        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center space-x-2">
+                            <i class="fa-solid fa-address-book text-slate-400"></i>
+                            <span>Coordonnées de Contact</span>
+                        </h2>
+
+                        <div class="space-y-4">
+                            <div class="py-2 border-b border-slate-200/40">
+                                <span class="text-xs text-slate-400 block mb-1">Adresse Email</span>
+                                <div class="flex items-center justify-between">
+                                    <a id="user-email-link" href="#" class="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors truncate mr-2">---</a>
+                                    <button onclick="copyCurrentEmail()" class="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 rounded-lg transition-all" title="Copier l'email">
+                                        <i class="fa-regular fa-copy text-xs"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="py-2 border-b border-slate-200/40">
+                                <span class="text-xs text-slate-400 block mb-1">Téléphone</span>
+                                <div class="flex items-center justify-between">
+                                    <a id="user-phone-link" href="#" class="text-sm font-mono font-medium text-slate-800 hover:text-indigo-600 transition-colors">---</a>
+                                    <button onclick="copyCurrentPhone()" class="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 rounded-lg transition-all" title="Copier le téléphone">
+                                        <i class="fa-regular fa-copy text-xs"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="py-2">
+                                <span class="text-xs text-slate-400 block mb-1">Matricule d'Identification</span>
+                                <div class="flex items-center justify-between bg-slate-900 text-white px-3.5 py-2.5 rounded-xl border border-slate-800 shadow-md">
+                                    <div class="flex items-center space-x-2">
+                                        <i class="fa-solid fa-fingerprint text-indigo-400 text-sm"></i>
+                                        <span id="matricule-card" class="text-xs font-mono font-bold tracking-widest text-amber-300">---</span>
+                                    </div>
+                                    <button onclick="copyCurrentMatricule()" class="text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-2.5 py-1 rounded-lg transition-colors flex items-center space-x-1">
+                                        <i class="fa-regular fa-copy"></i><span>Copier</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-8 pt-6 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400 gap-2">
+                    <div class="flex items-center space-x-2">
+                        <i class="fa-solid fa-shield-check text-emerald-500"></i>
+                        <span>Compte synchronisé avec l'API.</span>
+                    </div>
+                    <div>
+                        Identifiant système : <span id="system-id" class="font-mono text-slate-500">---</span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <footer class="w-full py-4 text-center text-xs text-slate-400 border-t border-slate-200/50 bg-white/40">
+        <p>&copy; 2026 Système de Gestion Utilisateur.</p>
+    </footer>
+    
+    <script>
+        // L'objet data est initialisé vide. Plus aucune donnée par défaut.
+        let currentProfileData = null;
+
+        /**
+         * Extrait le username pour la construction de l'url API.
+         * En production, cela peut venir de l'URL du navigateur (ex: ?username=joan)
+         */
+        function getTargetUsername() {
+            try{
+            const username = window.location.pathname.split('/')[2];
+            console.log(username)
+            return username 
+            }
+            catch(e){
+                console.log(e)
+                return 
+            }
+            
+        }
+
+        /**
+         * Appel API principal avec url dynamique http://192.168.30.2:8000/profil/{username}/
+         */
+        async function fetchUserProfile() {
+            const username = getTargetUsername();
+            
+            // Construction de l'URL exactement comme demandé
+            const apiUrl = `http://${window.location.host}/api/profil/${username}/`;
+
+            updateApiBadge("fetching");
+            hideErrorBanner();
+            document.getElementById('profile-card').classList.add('hidden'); // Cache la carte pendant le chargement
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error("Impossible de récupérer les données"); // Erreur générique
+                }
+
+                const data = await response.json();
+                currentProfileData = data;
+                
+                // On injecte les données fraîchement récupérées
+                renderProfileData(currentProfileData);
+                
+                // On affiche la carte seulement si l'API a répondu avec succès
+                document.getElementById('profile-card').classList.remove('hidden');
+                updateApiBadge("success");
+
+            } catch (error) {
+                // En production, on ne log plus l'erreur ni l'URL dans la console ou le DOM.
+                // On se contente d'afficher l'interface d'erreur.
+                showErrorBanner();
+                updateApiBadge("error");
+            }
+        }
+
+        /**
+         * Injection stricte des données de l'API dans le DOM
+         */
+        function renderProfileData(data) {
+            if(!data) return;
+
+            // Noms & Identifiants
+            const firstName = data.first_name || '';
+            const lastName = data.last_name || '';
+            const fullName = `${firstName} ${lastName}`.trim() || data.username || 'Utilisateur';
+            
+            document.getElementById('user-fullname').textContent = fullName;
+            document.title = `Profil - ${fullName}`;
+
+            document.getElementById('user-username').textContent = data.username || '---';
+            document.getElementById('user-username-detail').textContent = data.username || '---';
+            document.getElementById('user-firstname').textContent = firstName || 'Non renseigné';
+            document.getElementById('user-lastname').textContent = lastName || 'Non renseigné';
+
+            // Matricule
+            const matricule = data.matricule || 'NON ATTRIBUÉ';
+            document.getElementById('matricule-cover').textContent = matricule;
+            document.getElementById('matricule-header').textContent = matricule;
+            document.getElementById('matricule-card').textContent = matricule;
+            document.getElementById('system-id').textContent = `USER-${matricule}`;
+
+            // Score Moral
+            document.getElementById('user-score').textContent = data.score !== undefined ? data.score : '--';
+
+            // Email
+            const emailLink = document.getElementById('user-email-link');
+            emailLink.textContent = data.email || 'Non renseigné';
+            emailLink.href = data.email ? `mailto:${data.email}` : '#';
+
+            // Téléphone
+            const phoneLink = document.getElementById('user-phone-link');
+            phoneLink.textContent = data.telephone || 'Non renseigné';
+            phoneLink.href = data.telephone ? `tel:${data.telephone}` : '#';
+
+            // Sexe
+            renderSexe(data.sexe);
+
+            // Avatar - Exactement l'URL donnée par l'API
+            const avatarImg = document.getElementById('user-avatar');
+            if (data.photo_de_profil) {
+                console.log(data.photo_de_profil)
+                avatarImg.src = data.photo_de_profil;
+                avatarImg.addEventListener('click',()=>{window.location.href=data.photo_de_profil})
+                avatarImg.style.cursor = 'pointer'
+            } else {
+                // Fallback optionnel si l'API renvoie un champ vide
+                avatarImg.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=6366f1&color=ffffff`;
+            }
+        }
+
+        /**
+         * Formate et stylise le genre
+         */
+        function renderSexe(sexeCode) {
+            const labelEl = document.getElementById('sexe-label');
+            const detailEl = document.getElementById('user-sexe-detail');
+            const iconEl = document.getElementById('sexe-icon');
+            const iconBgEl = document.getElementById('sexe-icon-bg');
+
+            if (sexeCode === 'H' || sexeCode === 'Homme' || sexeCode === 'M') {
+                labelEl.textContent = 'Homme';
+                detailEl.innerHTML = `<i class="fa-solid fa-mars text-blue-500 mr-1.5 text-xs"></i> Homme (H)`;
+                iconEl.className = 'fa-solid fa-mars text-blue-600';
+                iconBgEl.className = 'w-9 h-9 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center';
+            } else if (sexeCode === 'F' || sexeCode === 'Femme') {
+                labelEl.textContent = 'Femme';
+                detailEl.innerHTML = `<i class="fa-solid fa-venus text-pink-500 mr-1.5 text-xs"></i> Femme (F)`;
+                iconEl.className = 'fa-solid fa-venus text-pink-600';
+                iconBgEl.className = 'w-9 h-9 rounded-xl bg-pink-500/10 text-pink-600 flex items-center justify-center';
+            } else {
+                labelEl.textContent = 'Non spécifié';
+                detailEl.textContent = 'Non spécifié';
+                iconEl.className = 'fa-solid fa-user text-slate-500';
+                iconBgEl.className = 'w-9 h-9 rounded-xl bg-slate-200 text-slate-500 flex items-center justify-center';
+            }
+        }
+
+        /**
+         * Gestionnaires de badges et de bannières d'erreur génériques
+         */
+        function updateApiBadge(status) {
+            const badge = document.getElementById('api-status-badge');
+            const text = document.getElementById('api-status-text');
+
+            if (status === 'fetching') {
+                badge.className = 'inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200';
+                text.innerHTML = `<i class="fa-solid fa-circle-notch animate-spin mr-1.5 text-indigo-500"></i> Chargement...`;
+            } else if (status === 'success') {
+                badge.className = 'inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200';
+                text.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 mr-1.5"></span> Connecté`;
+            } else {
+                badge.className = 'inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-200';
+                text.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500 mr-1.5"></span> Erreur`;
+            }
+        }
+
+        function showErrorBanner() {
+            document.getElementById('api-error-banner').classList.remove('hidden');
+        }
+
+        function hideErrorBanner() {
+            document.getElementById('api-error-banner').classList.add('hidden');
+        }
+
+        /**
+         * Raccourcis Copier
+         */
+        function copyCurrentMatricule() {
+            if(currentProfileData && currentProfileData.matricule) {
+                copyToClipboard(currentProfileData.matricule, 'Matricule copié !');
+            }
+        }
+
+        function copyCurrentEmail() {
+            if(currentProfileData && currentProfileData.email) {
+                copyToClipboard(currentProfileData.email, 'Email copié !');
+            }
+        }
+
+        function copyCurrentPhone() {
+            if(currentProfileData && currentProfileData.telephone) {
+                copyToClipboard(currentProfileData.telephone, 'Numéro copié !');
+            }
+        }
+
+        function copyToClipboard(text, message) {
+            if (!text) return;
+
+            const dummy = document.createElement('textarea');
+            document.body.appendChild(dummy);
+            dummy.value = text;
+            dummy.select();
+            document.execCommand('copy');
+            document.body.removeChild(dummy);
+
+            showToast(message);
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toast-message');
+            
+            toastMessage.textContent = message;
+            toast.classList.remove('opacity-0', 'translate-y-4', 'pointer-events-none');
+            toast.classList.add('opacity-100', 'translate-y-0');
+
+            setTimeout(() => {
+                toast.classList.remove('opacity-100', 'translate-y-0');
+                toast.classList.add('opacity-0', 'translate-y-4', 'pointer-events-none');
+            }, 2500);
+        }
+
+        // Lancement immédiat de la requête au chargement
+        window.addEventListener('DOMContentLoaded', fetchUserProfile);
+    </script>
+</body>
+</html>

@@ -1,0 +1,502 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profil Utilisateur</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+</head>
+<body class="font-sans antialiased min-h-full flex flex-col justify-between text-slate-800 bg-gradient-to-br from-slate-100 via-indigo-50/20 to-slate-100">
+
+    <!-- En-tête principal -->
+    <header class="w-full bg-white/90 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-50">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+            
+            <div class="flex items-center space-x-3">
+                <div class="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-200">
+                    <i class="fa-solid fa-user text-sm"></i>
+                </div>
+                <span class="font-semibold text-slate-800 text-lg tracking-tight hidden sm:inline">Profil Utilisateur</span>
+            </div>
+            
+            <!-- Liens de Navigation & Actions -->
+            <div class="flex items-center space-x-2 sm:space-x-3">
+                
+               
+                <!-- Status API Badge -->
+                <div id="api-status-badge" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                    <span class="w-2 h-2 rounded-full bg-amber-500 mr-1.5 animate-pulse"></span>
+                    <span id="api-status-text">Connexion...</span>
+                </div>
+                
+                <!-- Bouton Rafraîchir Manuel -->
+                <button onclick="fetchUserProfile(false)" class="p-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 rounded-xl transition-all" title="Actualiser manuellement">
+                    <i class="fa-solid fa-rotate-right text-sm"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full flex-grow">
+        
+        <!-- Toast Notification pour la copie -->
+        <div id="toast" class="fixed bottom-6 right-6 bg-slate-900 text-white px-4 py-2.5 rounded-xl shadow-xl flex items-center space-x-2 text-sm font-medium transition-all duration-300 opacity-0 transform translate-y-4 pointer-events-none z-50">
+            <i id="toast-icon" class="fa-solid fa-circle-check text-emerald-400"></i>
+            <span id="toast-message">Copié !</span>
+        </div>
+
+        <!-- Banner Alerte Erreur -->
+        <div id="api-error-banner" class="hidden mb-6 p-4 rounded-2xl bg-red-50 border border-red-200 text-red-800 text-sm flex items-start space-x-3">
+            <i class="fa-solid fa-triangle-exclamation text-red-500 text-lg mt-0.5"></i>
+            <div>
+                <p class="font-semibold">Une erreur est survenue</p>
+                <p id="api-error-message" class="text-xs text-red-600 mt-0.5">Impossible de récupérer les informations de cet utilisateur. Veuillez vérifier votre connexion ou réessayer plus tard.</p>
+            </div>
+        </div>
+
+        <!-- Profile Card Main Container -->
+        <div id="profile-card" class="hidden bg-white rounded-3xl shadow-xl shadow-slate-200/60 border border-slate-100 overflow-hidden">
+            
+            <!-- Couverture épurée -->
+            <div class="relative h-40 sm:h-48 bg-slate-800 overflow-hidden">
+                <img 
+                    src="https://images.unsplash.com/photo-1707343843437-caacff5cfa74?q=80&w=1200&auto=format&fit=crop" 
+                    alt="Couverture du profil" 
+                    class="w-full h-full object-cover opacity-90"
+                    onerror="this.style.display='none';"
+                />
+                <div class="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent"></div>
+
+                <!-- Element masqué gardant la référence pour le script tout en évitant les doublons visuels -->
+                <span id="matricule-cover" class="hidden">---</span>
+            </div>
+
+            <!-- Profile Info Header -->
+            <div class="relative px-6 sm:px-10 pb-8">
+                <div class="flex flex-col sm:flex-row sm:items-end justify-between -mt-16 sm:-mt-20 mb-6 gap-4">
+                    
+                    <!-- Avatar utilisateur -->
+                    <div class="relative inline-block">
+                        <div class="w-28 h-28 sm:w-32 sm:h-32 rounded-2xl ring-4 ring-white bg-slate-100 shadow-xl overflow-hidden relative group">
+                            <img 
+                                id="user-avatar"
+                                src="" 
+                                alt="Photo de profil" 
+                                class="w-full h-full object-cover bg-slate-200"
+                            />
+                        </div>
+                        <span class="absolute bottom-1 right-1 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full" title="Compte Actif"></span>
+                    </div>
+
+                    <!-- Carte Score Moral / Points (Mise en temps réel 30s) -->
+                    <div class="flex items-center gap-3 mt-2 sm:mt-0">
+                        <div class="bg-gradient-to-br from-indigo-900 via-indigo-950 to-slate-900 text-white border border-indigo-500/30 px-5 py-3 rounded-2xl flex items-center space-x-4 shadow-lg shadow-indigo-900/20 relative overflow-hidden">
+                            <div class="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 flex items-center justify-center">
+                                <i class="fa-solid fa-scale-balanced text-lg"></i>
+                            </div>
+                            <div>
+                                <div class="flex items-center space-x-1.5">
+                                    <p class="text-[10px] uppercase tracking-wider font-bold text-indigo-200">Score Moral</p>
+                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" title="Mise à jour en temps réel toutes les 30s">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1 animate-ping"></span> Live
+                                    </span>
+                                </div>
+                                <p class="text-2xl font-black text-white leading-none mt-1">
+                                    <span id="user-score">--</span> <span class="text-xs font-medium text-indigo-300">/ 20 pts</span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Nom + Identification -->
+                <div class="border-b border-slate-100 pb-6 mb-6">
+                    <div class="flex flex-wrap items-center justify-between gap-4">
+                        <div>
+                            <h1 id="user-fullname" class="text-2xl sm:text-3xl font-bold text-slate-900">Chargement...</h1>
+                            <div class="mt-1 flex items-center space-x-2 text-sm text-slate-500">
+                                <span class="flex items-center font-medium text-slate-600">
+                                    <i class="fa-solid fa-at text-indigo-500 mr-1 text-xs"></i>
+                                    <span id="user-username">---</span>
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Badge Matricule unique & fonctionnel -->
+                        <div class="inline-flex items-center space-x-2 bg-slate-100 hover:bg-slate-200/80 transition-colors px-3.5 py-2 rounded-xl border border-slate-200/80">
+                            <i class="fa-solid fa-id-badge text-indigo-600 text-sm"></i>
+                            <div class="text-left">
+                                <span class="text-[9px] uppercase font-bold text-slate-400 block leading-none">Matricule</span>
+                                <span id="matricule-header" class="font-mono font-bold text-slate-900 text-xs tracking-wider">---</span>
+                            </div>
+                            <button onclick="copyCurrentMatricule()" class="ml-1 text-slate-400 hover:text-indigo-600 transition-colors" title="Copier le matricule">
+                                <i class="fa-regular fa-copy text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Grille d'informations sans doublons -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    
+                    <!-- Section: Informations Personnelles -->
+                    <div class="bg-slate-50/70 border border-slate-200/60 rounded-2xl p-5 hover:border-slate-300 transition-colors">
+                        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center space-x-2">
+                            <i class="fa-solid fa-user-gear text-slate-400"></i>
+                            <span>Informations Personnelles</span>
+                        </h2>
+                        
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center py-2 border-b border-slate-200/40">
+                                <span class="text-xs font-medium text-slate-500">Prénom</span>
+                                <span id="user-firstname" class="text-sm font-semibold text-slate-800">---</span>
+                            </div>
+                            <div class="flex justify-between items-center py-2 border-b border-slate-200/40">
+                                <span class="text-xs font-medium text-slate-500">Nom de famille</span>
+                                <span id="user-lastname" class="text-sm font-semibold text-slate-800">---</span>
+                            </div>
+                            <div class="flex justify-between items-center py-2">
+                                <span class="text-xs font-medium text-slate-500">Sexe</span>
+                                <div class="flex items-center space-x-2">
+                                    <div id="sexe-icon-bg" class="w-6 h-6 rounded-lg bg-slate-200 text-slate-500 flex items-center justify-center text-xs">
+                                        <i id="sexe-icon" class="fa-solid fa-user"></i>
+                                    </div>
+                                    <span id="user-sexe-detail" class="text-sm font-semibold text-slate-800">---</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section: Coordonnées & Contact -->
+                    <div class="bg-slate-50/70 border border-slate-200/60 rounded-2xl p-5 hover:border-slate-300 transition-colors">
+                        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center space-x-2">
+                            <i class="fa-solid fa-address-book text-slate-400"></i>
+                            <span>Coordonnées</span>
+                        </h2>
+
+                        <div class="space-y-3">
+                            <div class="py-2 border-b border-slate-200/40">
+                                <span class="text-[11px] font-medium text-slate-400 block mb-0.5">Adresse Email</span>
+                                <div class="flex items-center justify-between">
+                                    <a id="user-email-link" href="#" class="text-sm font-semibold text-indigo-600 hover:text-indigo-800 transition-colors truncate mr-2">---</a>
+                                    <button onclick="copyCurrentEmail()" class="p-1 text-slate-400 hover:text-slate-600 rounded transition-all" title="Copier l'email">
+                                        <i class="fa-regular fa-copy text-xs"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="py-2">
+                                <span class="text-[11px] font-medium text-slate-400 block mb-0.5">Téléphone</span>
+                                <div class="flex items-center justify-between">
+                                    <a id="user-phone-link" href="#" class="text-sm font-mono font-semibold text-slate-800 hover:text-indigo-600 transition-colors">---</a>
+                                    <button onclick="copyCurrentPhone()" class="p-1 text-slate-400 hover:text-slate-600 rounded transition-all" title="Copier le téléphone">
+                                        <i class="fa-regular fa-copy text-xs"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pied de carte profil avec ID Système et statut -->
+                <div class="mt-8 pt-5 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400 gap-2">
+                    <div class="flex items-center space-x-2">
+                        <i class="fa-solid fa-shield-check text-emerald-500"></i>
+                        <span>Compte vérifié et synchronisé.</span>
+                    </div>
+                    <div>
+                        Identifiant système : <span id="system-id" class="font-mono text-slate-600 font-medium">---</span>
+                    </div>
+                </div>
+
+                <!-- Éléments masqués maintenus pour la compatibilité du script -->
+                <span id="sexe-label" class="hidden"></span>
+                <span id="user-username-detail" class="hidden"></span>
+                <span id="matricule-card" class="hidden"></span>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer avec liens d'utilisation et d'aide -->
+    <footer class="w-full py-6 text-center text-xs text-slate-500 border-t border-slate-200/60 bg-white/60 backdrop-blur-sm">
+        <div class="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <p>&copy; 2026 Système de Gestion Utilisateur.</p>
+            <div class="flex items-center space-x-4 font-medium">
+                <a href="/guide/" class="text-indigo-600 hover:text-indigo-800 transition-colors flex items-center space-x-1">
+                    <i class="fa-solid fa-book-open text-xs"></i>
+                    <span>Guide d'utilisation</span>
+                </a>
+                <span>•</span>
+                <a href="/termes/" class="text-slate-500 hover:text-slate-800 transition-colors">Termes &amp; Conditions</a>
+            </div>
+        </div>
+    </footer>
+    
+    <script>
+        let currentProfileData = null;
+
+        /**
+         * Extrait le username depuis l'URL.
+         */
+        function getTargetUsername() {
+            try {
+                const username = window.location.pathname.split('/')[2];
+                return username; 
+            } catch(e) {
+                console.log(e);
+                return null;
+            }
+        }
+
+        /**
+         * Appel API principal avec support du polling en arrière-plan (isBackground)
+         * @param {boolean} isBackground - Si true, met à jour sans masquer l'interface
+         */
+        async function fetchUserProfile(isBackground = false) {
+            const username = getTargetUsername();
+            const apiUrl = `http://${window.location.host}/api/profil/${username}/`;
+
+            if (!isBackground) {
+                updateApiBadge("fetching");
+                hideErrorBanner();
+                if (!currentProfileData) {
+                    const card = document.getElementById('profile-card');
+                    if (card) card.classList.add('hidden');
+                }
+            }
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error("Impossible de récupérer les données");
+                }
+
+                const data = await response.json();
+                currentProfileData = data;
+                
+                // Injection dynamique des données
+                renderProfileData(currentProfileData);
+                
+                const card = document.getElementById('profile-card');
+                if (card) card.classList.remove('hidden');
+                updateApiBadge("success");
+
+            } catch (error) {
+                if (!isBackground) {
+                    showErrorBanner();
+                    updateApiBadge("error");
+                }
+            }
+        }
+
+        /**
+         * Injection sécurisée des données de l'API dans le DOM
+         */
+        function renderProfileData(data) {
+            if(!data) return;
+
+            const firstName = data.first_name || '';
+            const lastName = data.last_name || '';
+            const fullName = `${firstName} ${lastName}`.trim() || data.username || 'Utilisateur';
+            
+            setElementText('user-fullname', fullName);
+            document.title = `Profil - ${fullName}`;
+
+            setElementText('user-username', data.username || '---');
+            setElementText('user-username-detail', data.username || '---');
+            setElementText('user-firstname', firstName || 'Non renseigné');
+            setElementText('user-lastname', lastName || 'Non renseigné');
+
+            // Matricule
+            const matricule = data.matricule || 'NON ATTRIBUÉ';
+            setElementText('matricule-cover', matricule);
+            setElementText('matricule-header', matricule);
+            setElementText('matricule-card', matricule);
+            setElementText('system-id', `USER-${matricule}`);
+
+            // Score Moral / Points (Temps réel)
+            setElementText('user-score', data.score !== undefined ? data.score : '--');
+
+            // Email
+            const emailLink = document.getElementById('user-email-link');
+            if (emailLink) {
+                emailLink.textContent = data.email || 'Non renseigné';
+                emailLink.href = data.email ? `mailto:${data.email}` : '#';
+            }
+
+            // Téléphone
+            const phoneLink = document.getElementById('user-phone-link');
+            if (phoneLink) {
+                phoneLink.textContent = data.telephone || 'Non renseigné';
+                phoneLink.href = data.telephone ? `tel:${data.telephone}` : '#';
+            }
+
+            // Sexe
+            renderSexe(data.sexe);
+
+            // Avatar
+            const avatarImg = document.getElementById('user-avatar');
+            if (avatarImg) {
+                if (data.photo_de_profil) {
+                    avatarImg.src = data.photo_de_profil;
+                    avatarImg.onclick = () => { window.location.href = data.photo_de_profil; };
+                    avatarImg.style.cursor = 'pointer';
+                } else {
+                    avatarImg.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=6366f1&color=ffffff`;
+                }
+            }
+        }
+
+        /**
+         * Helper d'écriture sécurisée dans le DOM
+         */
+        function setElementText(id, text) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = text;
+        }
+
+        /**
+         * Formate et stylise le genre
+         */
+        function renderSexe(sexeCode) {
+            const labelEl = document.getElementById('sexe-label');
+            const detailEl = document.getElementById('user-sexe-detail');
+            const iconEl = document.getElementById('sexe-icon');
+            const iconBgEl = document.getElementById('sexe-icon-bg');
+
+            let labelText = 'Non spécifié';
+            let iconClass = 'fa-solid fa-user text-slate-500';
+            let bgClass = 'w-6 h-6 rounded-lg bg-slate-200 text-slate-500 flex items-center justify-center text-xs';
+
+            if (sexeCode === 'H' || sexeCode === 'Homme' || sexeCode === 'M') {
+                labelText = 'Homme';
+                iconClass = 'fa-solid fa-mars text-blue-600';
+                bgClass = 'w-6 h-6 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center text-xs';
+            } else if (sexeCode === 'F' || sexeCode === 'Femme') {
+                labelText = 'Femme';
+                iconClass = 'fa-solid fa-venus text-pink-600';
+                bgClass = 'w-6 h-6 rounded-lg bg-pink-500/10 text-pink-600 flex items-center justify-center text-xs';
+            }
+
+            if (labelEl) labelEl.textContent = labelText;
+            if (detailEl) detailEl.textContent = labelText;
+            if (iconEl) iconEl.className = iconClass;
+            if (iconBgEl) iconBgEl.className = bgClass;
+        }
+
+        /**
+         * Badge d'état de connexion API
+         */
+        function updateApiBadge(status) {
+            const badge = document.getElementById('api-status-badge');
+            const text = document.getElementById('api-status-text');
+            if (!badge || !text) return;
+
+            if (status === 'fetching') {
+                badge.className = 'inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200';
+                text.innerHTML = `<i class="fa-solid fa-circle-notch animate-spin mr-1.5 text-indigo-500"></i> Chargement...`;
+            } else if (status === 'success') {
+                badge.className = 'inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200';
+                text.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 mr-1.5"></span> Connecté`;
+            } else {
+                badge.className = 'inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-200';
+                text.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500 mr-1.5"></span> Erreur`;
+            }
+        }
+
+        function showErrorBanner() {
+            const banner = document.getElementById('api-error-banner');
+            if (banner) banner.classList.remove('hidden');
+        }
+
+        function hideErrorBanner() {
+            const banner = document.getElementById('api-error-banner');
+            if (banner) banner.classList.add('hidden');
+        }
+
+        /**
+         * Fonctions de copie
+         */
+        function copyCurrentMatricule() {
+            if(currentProfileData && currentProfileData.matricule) {
+                copyToClipboard(currentProfileData.matricule, 'Matricule copié !');
+            }
+        }
+
+        function copyCurrentEmail() {
+            if(currentProfileData && currentProfileData.email) {
+                copyToClipboard(currentProfileData.email, 'Email copié !');
+            }
+        }
+
+        function copyCurrentPhone() {
+            if(currentProfileData && currentProfileData.telephone) {
+                copyToClipboard(currentProfileData.telephone, 'Numéro copié !');
+            }
+        }
+
+        function copyToClipboard(text, message) {
+            if (!text) return;
+            const dummy = document.createElement('textarea');
+            document.body.appendChild(dummy);
+            dummy.value = text;
+            dummy.select();
+            document.execCommand('copy');
+            document.body.removeChild(dummy);
+            showToast(message);
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toast-message');
+            if (!toast || !toastMessage) return;
+
+            toastMessage.textContent = message;
+            toast.classList.remove('opacity-0', 'translate-y-4', 'pointer-events-none');
+            toast.classList.add('opacity-100', 'translate-y-0');
+
+            setTimeout(() => {
+                toast.classList.remove('opacity-100', 'translate-y-0');
+                toast.classList.add('opacity-0', 'translate-y-4', 'pointer-events-none');
+            }, 2500);
+        }
+
+        // Lancement immédiat au chargement
+        window.addEventListener('DOMContentLoaded', () => {
+            fetchUserProfile(false);
+
+            // Fetch d'intervalle automatique toutes les 30 secondes (Polling en temps réel)
+            setInterval(() => {
+                fetchUserProfile(true);
+            }, 30000);
+        });
+    </script>
+</body>
+</html>
