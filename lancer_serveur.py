@@ -39,6 +39,8 @@ CELERY_EXE = os.path.join(
     "celery.exe"
 )
 
+
+
 # Projet Django
 DJANGO_DIR = os.path.join(
     BASE_DIR,

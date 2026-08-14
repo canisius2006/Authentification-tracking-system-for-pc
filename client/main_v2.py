@@ -87,16 +87,21 @@ class Coeur():
             self.scheduler.add_job(self.poster_application,'interval',seconds=20)
             self.scheduler.add_job(self.verifier_score,'interval',minutes=1)
             self.scheduler.start()
-            
+        elif response.status_code==401:
+            self.obtenir_nouveau_token()
+            self.create_session()      
         else:
             exit() 
 
     def obtenir_nouveau_token(self):
         """Cette fonction va nous permettre de pouvoir avoir un nouveau token"""
         url = f"http://{HOST}/api/token/refresh/"
-        response = requests.post(url,data={'refresh':self.refresh_token})
-        self.access_token = response.json().get("access")
-        self.refresh_token = response.json().get("refresh")
+        try:
+            response = requests.post(url,data={'refresh':self.refresh_token})
+            self.access_token = response.json().get("access")
+            self.refresh_token = response.json().get("refresh")
+        except:
+            pass 
         
 
     def poster_application(self):
@@ -104,6 +109,11 @@ class Coeur():
         action = application_active.application_active()
         url = f"http://{HOST}/api/application/"
         reponse = requests.post(url,data={'session':int(self.session_id),'nom':action},headers={'Authorization':f"Bearer {self.access_token}"})
+        if reponse.status_code==401:
+            self.obtenir_nouveau_token()
+            self.poster_application()
+        else:
+            pass 
         
 
     def verifier_score(self):
@@ -115,8 +125,8 @@ class Coeur():
         if self.score <=0:
             webbrowser.open(f'http://{HOST}/extinction/')
             self.eteindre_ordinateur()
+
         if self.score == 10:
-           messagebox.showwarning(title="CAEB Authentification",message="Votre score de moralité est à 10 \n Faite attention à ce que vous faites sur le pc",icon='warning')
            webbrowser.open(f'http://{HOST}/profil/{self.username}/')
 
     def eteindre_ordinateur(self):
