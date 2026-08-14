@@ -29,10 +29,10 @@ def application_active():
         application = "Inconnu"
 
 
-    return str(json.dumps({
+    return json.dumps({
         "application": application,
         "titre": titre
-    }))
+    })
 
 
 if __name__=='__main__':
