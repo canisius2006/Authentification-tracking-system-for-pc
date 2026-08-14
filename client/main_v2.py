@@ -258,6 +258,7 @@ class MainApp(ctk.CTk):
         self.geometry(f"{int(self.winfo_screenwidth())}x{int(self.winfo_screenheight())}+0+0") 
         self.overrideredirect(True)
         self.attributes("-topmost", True)
+        self.check_focus() #Always on the top
         self.bind_all('<Control-Shift-B>',lambda e:self._on_close())
         #Maintenant, on supprime les raccourcis pour pouvoir quitter sans s'inscrire 
         self.bind('<Alt-F4>',lambda e: "break")
@@ -266,7 +267,14 @@ class MainApp(ctk.CTk):
         self.bind('<Control-q>',lambda e: 'break')
         self.protocol('WM_DELETE_WINDOW',lambda e: None)
 
+    def check_focus(self):
+        if self.focus_displayof() is None:
+            self.lift()
+            self.attributes("-topmost", True)
 
+        self.after(200, self.check_focus)
+
+        
     def _on_close(self):
         """S'assure que la webcam est bien libérée avant de fermer
         l'application (au cas où l'utilisateur quitte pendant que la
