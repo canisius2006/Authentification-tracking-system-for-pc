@@ -52,8 +52,7 @@ import customtkinter as ctk
 from PIL import Image, ImageOps
 import webbrowser 
 import re
-import application_active 
-import application_topmost 
+import application_monitor
 from apscheduler.schedulers.background import BackgroundScheduler
 import subprocess
 import os,sys 
@@ -107,21 +106,19 @@ class Coeur():
 
     def poster_application(self):
         """Cette fonction va nous permettre de pouvoir poster l'application active au serveur """
-        action = application_active.application_active()
-        action_2 = application_topmost.application_premier_plan()
-        if action==action_2:
+        data = application_monitor.etat_applications()
+        data_dict = json.loads(applications)
+        applications = data_dict['applications']
+        if len(applications)==0:
+          return
+        for application in applications:
             url = f"http://{HOST}/api/application/"
-            reponse = requests.post(url,data={'session':int(self.session_id),'nom':action},headers={'Authorization':f"Bearer {self.access_token}"})
+            reponse = requests.post(url,data={'session':int(self.session_id),'nom':application},headers={'Authorization':f"Bearer {self.access_token}"})
 
-        if action!=action_2:
-           reponse = requests.post(url,data={'session':int(self.session_id),'nom':action},headers={'Authorization':f"Bearer {self.access_token}"})
-           reponse_2 = requests.post(url,data={'session':int(self.session_id),'nom':action_2},headers={'Authorization':f"Bearer {self.access_token}"}) 
-
-        if reponse.status_code==401 :
-            self.obtenir_nouveau_token()
-            self.poster_application()
-        else:
-            pass 
+          if reponse.status_code==401 :
+              self.obtenir_nouveau_token()
+              self.poster_application()
+        
 
     
     
