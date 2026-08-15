@@ -70,7 +70,9 @@ Analyse IA
      Bad_action
           │
           ▼
-   Score utilisateur - 2
+   Score utilisateur - 1
+   (puis -1 supplémentaire tous les 6 signalements
+    répétés de la même mauvaise action)
 ```
 
 ---
@@ -186,36 +188,47 @@ Les modèles utilisés sont :
 
 ```text
 .
-├── authentification/                 # Serveur Django / API REST
-│   ├── authentification/
-│   │   ├── settings.py
-│   │   ├── celery.py
-│   │   └── urls.py
+├── serveur/
+│   ├── authentification/             # Projet Django / API REST
+│   │   ├── authentification/
+│   │   │   ├── settings.py
+│   │   │   ├── celery.py
+│   │   │   ├── wsgi.py / asgi.py
+│   │   │   └── urls.py
+│   │   │
+│   │   ├── compte/
+│   │   │   ├── models.py
+│   │   │   ├── views.py
+│   │   │   ├── urls.py
+│   │   │   ├── serializers.py
+│   │   │   ├── authentication.py     # Backend d'authentification multi-champs
+│   │   │   ├── tasks.py              # Tâche Celery verifier_activite
+│   │   │   └── analyseur.py          # Pipeline d'analyse IA
+│   │   │
+│   │   ├── static/ , templates/
+│   │   └── manage.py
 │   │
-│   ├── compte/
-│   │   ├── models.py
-│   │   ├── views.py
-│   │   ├── urls.py
-│   │   ├── serializers.py
-│   │   ├── tasks.py
-│   │   └── analyseur.py
-│   │
-│   ├── requirements.txt
-│   └── manage.py
+│   └── piracy.txt                    # Blocklist utilisée par analyseur.py
 │
-├── client/                          # Application installée sur les postes
-│   ├── main_v2.py                   # Client actuel
-│   ├── main_v1.py                   # Ancienne implémentation directe MySQL
-│   ├── application_active.py        # Détection de la fenêtre active
-│   ├── analyseur_version_api.py
-│   └── tache_repetitif.py
+├── client/                           # Application installée sur les postes
+│   ├── main_v2.py                    # Client actuel
+│   ├── main_v1.py                    # Ancienne implémentation directe MySQL
+│   ├── application_active.py         # Détection de la fenêtre active (v1)
+│   ├── application_monitor.py        # Détection des fenêtres visibles (v2)
+│   └── application_topmost.py        # Détection de la fenêtre au premier plan
 │
-├── piracy.txt                       # Blocklist
-├── conception.md                    # Notes de conception
-└── autres scripts d'expérimentation
+├── analyseur.py                      # Copie du pipeline d'analyse, pour tests hors serveur
+├── compilateur_main.py               # Utilitaire graphique pour compiler le client avec Nuitka
+├── lancer_serveur.py                 # Lance Redis/Memurai + Django (runserver) + Celery
+├── lancer_serveur_worker.py          # Lance Waitress (production) + Celery
+├── requirements.txt
+├── conception.md                     # Notes de conception
+└── icone.ico / drawSQL-image-export-*.webp
 ```
 
 `main_v1.py` peut être conservé dans le dépôt comme référence historique, mais il n'est plus nécessaire de documenter son fonctionnement séparément dans ce README : ses principes sont repris dans la V2.
+
+`analyseur.py` (racine) et `serveur/authentification/compte/analyseur.py` sont actuellement deux copies quasi identiques du même pipeline : à terme, un seul fichier partagé (importé par le serveur) éviterait qu'ils divergent.
 
 ---
 
@@ -285,9 +298,10 @@ DB_NAME=...
 DB_USER=...
 DB_PASSWORD=...
 DB_PORT=3306
+DB_HOST=...
 ```
 
-L'hôte MySQL peut être configuré selon l'environnement de déploiement.
+`DB_HOST` est résolu via `socket.gethostbyname()` dans `settings.py` : il doit donc être un nom d'hôte résolvable (ou une IP) au moment du démarrage du serveur, sans quoi Django ne démarre pas.
 
 ---
 
@@ -385,6 +399,19 @@ celery -A authentification worker --loglevel=info -P solo
 ```
 
 L'option `-P solo` est recommandée sous Windows.
+
+---
+
+## 9.4bis Scripts de lancement automatisés (Windows)
+
+Deux scripts à la racine du dépôt évitent d'ouvrir manuellement chaque terminal :
+
+- **`lancer_serveur.py`** : détecte un `redis-cli`/`memurai-cli` fonctionnel, puis ouvre trois fenêtres PowerShell (Redis/Memurai, `manage.py runserver`, Celery worker). Adapté au développement.
+- **`lancer_serveur_worker.py`** : ouvre deux fenêtres PowerShell (Waitress en écoute sur `0.0.0.0:8000`, Celery worker). Adapté à un déploiement plus proche de la production, sans le serveur de développement Django.
+
+Les deux scripts lisent `DB_HOST` depuis `.env` pour construire l'adresse d'écoute, et supposent une arborescence `serveur/authentification/` avec un environnement virtuel `venv/` à la racine du projet.
+
+⚠️ `lancer_serveur_worker.py` fait écouter Waitress sur `0.0.0.0`, donc sur toutes les interfaces réseau de la machine. Avec `DEBUG=True` et `ALLOWED_HOSTS=['*']` toujours actifs côté Django (voir §16.1), cela expose les pages d'erreur détaillées à tout le réseau accessible. Corriger §16.1 avant d'utiliser ce script en dehors d'un réseau de confiance.
 
 ---
 
@@ -561,7 +588,45 @@ La V2 ajoute ensuite toute la partie **tracking + score + analyse IA** autour de
 
 ---
 
-# 16. Limitations connues
+# 16. Sécurité — points de vigilance identifiés
+
+Cette section documente des points relevés lors d'une relecture du code, à corriger avant tout déploiement exposé au-delà d'un réseau local de confiance.
+
+## 16.1 Configuration Django
+
+- **`DEBUG = True`** est codé en dur dans `settings.py` (non piloté par une variable d'environnement). En production, cela expose les pages d'erreur Django détaillées (stack trace, requêtes SQL, valeurs de configuration) à quiconque déclenche une exception sur l'API.
+- **`ALLOWED_HOSTS = ['*']`** accepte n'importe quel en-tête `Host`. Combiné à `DEBUG=True`, le risque de fuite d'informations est maximal.
+- Recommandation : `DEBUG = os.getenv('DEBUG', 'False') == 'True'` et `ALLOWED_HOSTS` limité aux hôtes réellement utilisés, au moins pour tout déploiement hors poste de développement.
+
+## 16.2 Endpoint de profil non protégé
+
+`ProfilApiView` (`GET /api/profil/<valeur>/`) ne définit pas de `permission_classes` et hérite donc du comportement par défaut de DRF (accès non authentifié). `<valeur>` peut être un `username`, `matricule`, `email` ou `telephone`, et la réponse inclut l'email, le téléphone et le score de l'utilisateur. En l'état, n'importe qui connaissant (ou devinant) un identifiant peut consulter ces informations sans se connecter.
+Recommandation : ajouter `permission_classes = [IsAuthenticated]`, et envisager de restreindre les champs renvoyés à l'utilisateur qui consulte son propre profil (sauf pour un admin).
+
+## 16.3 Code d'activation de compte
+
+Le code d'activation (`activation_code`) fait seulement 3 caractères (`create_code()` génère un nombre entre 112 et 999, soit moins de 900 valeurs possibles), et `ValiderInscriptionApiView` n'a ni authentification ni limitation de débit (*rate limiting*). Un script pourrait tester toutes les combinaisons en quelques minutes et activer un compte à la place de son propriétaire légitime.
+Recommandation : allonger le code (6 chiffres ou plus), et/ou ajouter une limitation du nombre de tentatives par compte/IP (ex. `django-ratelimit`, ou le throttling intégré à DRF).
+
+## 16.4 `ast.literal_eval` sur une donnée envoyée par le client
+
+Dans `serializers.py`, `str_to_dict()` applique `ast.literal_eval()` au champ `nom` envoyé par le client dans `ApplicationSerializer`. `ast.literal_eval` n'exécute pas de code arbitraire (contrairement à `eval`), donc ce n'est pas une faille d'exécution de code, mais :
+- toute valeur de `nom` qui n'est pas une syntaxe littérale Python valide fait planter la création (exception non gérée → erreur 500) ;
+- le champ `nom` stocké en base finit par contenir la représentation texte d'un dictionnaire Python plutôt qu'un simple nom d'application, ce qui est fragile et peu lisible.
+Recommandation : faire transiter cette donnée en JSON (`json.dumps` côté client, `json.loads` côté serveur) plutôt qu'en syntaxe littérale Python, et valider/encadrer les exceptions de parsing avec une réponse HTTP propre (400) plutôt que de laisser remonter une 500.
+
+## 16.5 Trafic client ↔ serveur en HTTP simple
+
+Le client (`main_v2.py`) construit toutes ses requêtes en `http://{HOST}/...` (voir `DEFAULT_API_BASE_URL`), sans TLS. Les identifiants de connexion et les tokens JWT transitent donc en clair sur le réseau. Sur un réseau local isolé et de confiance, le risque est limité ; sur un réseau partagé (Wi-Fi, VLAN mutualisé) ou si le serveur est un jour exposé sur Internet, c'est une interception facile (identifiants, tokens, activité de navigation des utilisateurs).
+Recommandation : passer en HTTPS dès que le déploiement sort d'un réseau local strictement contrôlé (reverse proxy avec certificat, même auto-signé en interne).
+
+## 16.6 Nom d'hôte du serveur codé en dur côté client
+
+`HOST = f"{socket.gethostbyname('CIA-008')}:8000"` dans `main_v2.py` force la résolution DNS/NetBIOS du nom `CIA-008`. Cela fonctionne uniquement si ce nom d'hôte est résolvable depuis chaque poste client, et rend le client inutilisable tel quel sur un autre réseau ou avec un autre nom de serveur. C'est cohérent avec la limitation déjà notée plus bas (§17) sur l'URL codée en dur, mais mérite d'être isolé dans un fichier de configuration (ou récupéré au premier lancement via l'écran de connexion, qui propose déjà `api_base_url_var`).
+
+---
+
+# 17. Limitations connues
 
 - `requirements.txt` du serveur doit être maintenu à jour avec toutes les dépendances réellement utilisées.
 - L'URL de l'API ne devrait pas être codée en dur dans le client.
@@ -573,7 +638,7 @@ La V2 ajoute ensuite toute la partie **tracking + score + analyse IA** autour de
 
 ---
 
-# 17. Résumé
+# 18. Résumé
 
 Le système a commencé avec une architecture simple :
 
