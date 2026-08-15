@@ -19,10 +19,10 @@ def verifier_activite(application_id, activite):
     #print(type(activite))
 
     if isinstance(activite,str):
-        print("ce n'est pas un dict")
+        
         return
    
-    print('\n\n\n')
+    
     # 1. Récupérer l'application
     try:
         application = Application.objects.get(id=application_id)
@@ -35,7 +35,7 @@ def verifier_activite(application_id, activite):
     # 2. Analyser l'activité
     resultat = dict(analyser_activite(activite))
 
-    #print(resultat)
+  
 
     # 3. L'activité n'est pas mauvaise => rien à créer
     if resultat.get("mauvais") is not True:
@@ -62,7 +62,17 @@ def verifier_activite(application_id, activite):
             user = application.session.user
             user.score = F('score') - 1
             user.save(update_fields=['score'])
-            print("Created and i substracted the user's score")
+           
+
+        #Ici, si ce n'est pas nouveau , on incrémente le nombre de fois que l'infraction a été commis
+        if not created:
+            bad_action.nombre = F('nombre') + 1 
+            bad_action.save(update_fields=['nombre'])
+            #On vérifie si l'utilisateur n'a pas passé plus de 2 minutes sur la mauvaise action
+            if bad_action.nombre%6==0:
+                user = application.session.user
+                user.score = F('score') - 1
+                user.save(update_fields=['score'])
 
         # 6. Dans tous les cas (nouvelle action ou doublon), on met à jour les heures de fin
         session = application.session
