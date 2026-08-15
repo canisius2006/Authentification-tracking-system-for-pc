@@ -8,7 +8,7 @@ import json
 TITRE_INCONNU = "Titre inconnu"
 
 
-def _get_application_depuis_hwnd(hwnd):
+def get_application_depuis_hwnd(hwnd):
     """Retourne (application, titre, pid) pour un handle de fenêtre donné."""
     titre = win32gui.GetWindowText(hwnd).strip() or TITRE_INCONNU
     _, pid = win32process.GetWindowThreadProcessId(hwnd)
@@ -64,7 +64,7 @@ def applications_premier_plan():
         if not _est_fenetre_utilisateur(hwnd):
             return True
 
-        application, titre, pid = _get_application_depuis_hwnd(hwnd)
+        application, titre, pid = get_application_depuis_hwnd(hwnd)
 
         resultats.append({
             "hwnd": hwnd,
@@ -87,7 +87,7 @@ def application_active():
     if not hwnd or not win32gui.IsWindowVisible(hwnd):
         return None
 
-    application, titre, pid = _get_application_depuis_hwnd(hwnd)
+    application, titre, pid = get_application_depuis_hwnd(hwnd)
 
     return {
         "hwnd": hwnd,
