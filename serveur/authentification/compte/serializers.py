@@ -95,7 +95,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 
 def str_to_dict(chaine):
-    loader = ast.literal_eval(chaine)
+    loader = json.loads(chaine)
     return loader   
 
 
