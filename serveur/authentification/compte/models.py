@@ -51,6 +51,7 @@ class Bad_action(models.Model):
     titre = models.CharField(max_length=255,verbose_name='Titre',blank=True,null=True)
     text_input = models.TextField(verbose_name='Texte_brute')
     justification = models.TextField(verbose_name="Justification IA",)
+    count = models.IntegerField(verbose_name='Nombre de fois commis',default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
