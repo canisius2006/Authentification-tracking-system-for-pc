@@ -28,7 +28,7 @@ def create_matricule():
 
 def create_code():
     """Cette fonction va nous permettre de pouvoir créer un code de validation d'inscription, c'est à dire pour valider l'inscription de l'utilisateur"""
-    return str(random.randint(112,999))
+    return str(random.randint(112,9999))
 
 #Ce serializer sert à consulter ou modifier le profil.
 class UserSerializer(serializers.ModelSerializer):
