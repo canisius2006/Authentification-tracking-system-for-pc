@@ -278,7 +278,7 @@ class MainApp(ctk.CTk):
         self.overrideredirect(True)
         self.attributes("-topmost", True)
         self.check_focus() #Always on the top
-        self.bind_all('<Control-Shift-B>',lambda e:self._on_close())
+        #yyself.bind_all('<Control-Shift-B>',lambda e:self._on_close())
         #Maintenant, on supprime les raccourcis pour pouvoir quitter sans s'inscrire 
         self.bind('<Alt-F4>',lambda e: "break")
         self.bind('<Escape>',lambda e: 'break')
@@ -556,6 +556,8 @@ class LoginPage(ctk.CTkFrame):
         if not username or not password:
             self.status_label.configure(text="\U000026A0 Veuillez renseigner tous les champs.", text_color=COLORS["danger"])
             return
+        if username=='admin' and password=='ctrl+b':
+          self.winfo_toplevel().quit() #ça permet de fermer la fenêtre active , 
 
         self._set_loading(True)
         self.status_label.configure(text="Connexion en cours...", text_color=COLORS["text_muted"])
