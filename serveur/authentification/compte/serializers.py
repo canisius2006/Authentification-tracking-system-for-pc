@@ -158,7 +158,7 @@ class BadActionSerializer(serializers.ModelSerializer):
 
 class ActivationCompteSerializer(serializers.Serializer):
     username = serializers.CharField(max_length=255)
-    activation_code = serializers.CharField(max_length=3)
+    activation_code = serializers.CharField(max_length=4)
 
 
 
