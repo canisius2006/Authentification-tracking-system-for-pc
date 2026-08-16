@@ -18,6 +18,9 @@ from drf_spectacular.utils import extend_schema, OpenApiResponse
 from drf_spectacular.utils import extend_schema
 from rest_framework import status 
 from rest_framework_simplejwt.tokens import RefreshToken 
+from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework.throttling import ScopedRateThrottle
+
 from .tasks import verifier_activite
 from dotenv import load_dotenv 
 import os,socket
@@ -188,6 +191,10 @@ class ValiderInscriptionApiView(APIView):
                 ,
                     status=status.HTTP_406_NOT_ACCEPTABLE
             )
+
+class ThrottledTokenObtainPairView(TokenObtainPairView):
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'login'
 
 def dash(request):
     if request.user.is_superuser:
