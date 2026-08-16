@@ -147,6 +147,7 @@ class ListInscriptionPendingView(generics.ListAPIView):
 
 
 class ValiderInscriptionApiView(APIView):
+    throttle_scope = 'activation'
     @extend_schema(
         request=ActivationCompteSerializer,
         responses={
