@@ -19,7 +19,7 @@ from django.urls import path,include
 from django.conf import settings 
 from django.conf.urls.static import static 
 from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
+    TokenObtainPairView, #Nous allons utiliser une autre view adapté avec du rate limit appliqué 
     TokenRefreshView,
 )
 
@@ -33,7 +33,7 @@ from compte import views
 
 urlpatterns = [
     path('',views.accueil),
-    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/', views.ThrottledTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('admin/', admin.site.urls),
     path('api/',include('compte.urls')),
