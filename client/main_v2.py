@@ -106,7 +106,7 @@ class Coeur():
 
     def poster_application(self):
         """Cette fonction va nous permettre de pouvoir poster l'application active au serveur """
-        data = application_monitor.etat_applications()
+        applications = application_monitor.lister_applications()
         data_dict = json.loads(applications)
         applications = data_dict['applications']
         if len(applications)==0:
@@ -115,9 +115,9 @@ class Coeur():
             url = f"http://{HOST}/api/application/"
             reponse = requests.post(url,data={'session':int(self.session_id),'nom':application},headers={'Authorization':f"Bearer {self.access_token}"})
 
-          if reponse.status_code==401 :
-              self.obtenir_nouveau_token()
-              self.poster_application()
+            if reponse.status_code==401 :
+                self.obtenir_nouveau_token()
+                self.poster_application()
         
 
     

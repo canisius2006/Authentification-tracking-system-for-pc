@@ -1,129 +1,210 @@
 import win32gui
-import win32con
 import win32process
+import win32con
 import psutil
+import ctypes
+from ctypes import wintypes
 import json
 
 
-TITRE_INCONNU = "Titre inconnu"
+DWMWA_CLOAKED = 14
 
 
-def get_application_depuis_hwnd(hwnd):
-    """Retourne (application, titre, pid) pour un handle de fenêtre donné."""
-    titre = win32gui.GetWindowText(hwnd).strip() or TITRE_INCONNU
-    _, pid = win32process.GetWindowThreadProcessId(hwnd)
+# ============================================================
+# API GDI de Windows
+# ============================================================
 
+gdi32 = ctypes.windll.gdi32
+
+gdi32.CreateRectRgn.argtypes = [
+    ctypes.c_int,
+    ctypes.c_int,
+    ctypes.c_int,
+    ctypes.c_int,
+]
+
+gdi32.CreateRectRgn.restype = wintypes.HRGN
+
+
+# ============================================================
+# Vérifie si une fenêtre est "cloaked"
+# ============================================================
+
+def est_cloaked(hwnd):
     try:
-        processus = psutil.Process(pid)
-        application = processus.name()
-    except (psutil.NoSuchProcess, psutil.AccessDenied):
-        application = "Inconnu"
+        dwmapi = ctypes.windll.dwmapi
+        cloaked = wintypes.DWORD()
 
-    return application, titre, pid
+        res = dwmapi.DwmGetWindowAttribute(
+            hwnd,
+            DWMWA_CLOAKED,
+            ctypes.byref(cloaked),
+            ctypes.sizeof(cloaked)
+        )
+
+        if res == 0:
+            return cloaked.value != 0
+
+    except Exception:
+        pass
+
+    return False
 
 
-def _est_fenetre_utilisateur(hwnd):
-    """
-    Détermine si une fenêtre fait partie de celles qu'un utilisateur
-    verrait réellement à l'écran (type liste alt-tab), indépendamment
-    du fait qu'elle ait un titre ou non.
+# ============================================================
+# Vérifie si une fenêtre est valide
+# ============================================================
 
-    Règles :
-    - doit être visible
-    - doit être une fenêtre top-level sans "owner" (élimine les popups,
-      tooltips, menus, boîtes de dialogue secondaires)
-    - exclue si elle a le style WS_EX_TOOLWINDOW (barres d'outils/palettes),
-      sauf si elle a aussi WS_EX_APPWINDOW (forcée à apparaître dans l'alt-tab)
-    """
+def fenetre_valide(hwnd):
+
     if not win32gui.IsWindowVisible(hwnd):
         return False
 
-    if win32gui.GetWindow(hwnd, win32con.GW_OWNER) != 0:
+    if win32gui.IsIconic(hwnd):
         return False
 
-    style_etendu = win32gui.GetWindowLong(hwnd, win32con.GWL_EXSTYLE)
-    est_tool_window = bool(style_etendu & win32con.WS_EX_TOOLWINDOW)
-    est_app_window = bool(style_etendu & win32con.WS_EX_APPWINDOW)
+    if est_cloaked(hwnd):
+        return False
 
-    if est_tool_window and not est_app_window:
+    rect = win32gui.GetWindowRect(hwnd)
+
+    largeur = rect[2] - rect[0]
+    hauteur = rect[3] - rect[1]
+
+    if largeur <= 0 or hauteur <= 0:
+        return False
+
+    if rect[0] <= -30000 or rect[1] <= -30000:
         return False
 
     return True
 
 
-def applications_premier_plan():
-    """
-    Énumère toutes les fenêtres actuellement visibles par l'utilisateur
-    (liste type alt-tab), et retourne une liste de dicts {application, titre}.
-    Les fenêtres sans titre (jeux plein écran, PiP, etc.) sont conservées
-    avec "Titre inconnu" plutôt qu'exclues.
-    """
-    resultats = []
+# ============================================================
+# Vérifie si une fenêtre est totalement occultée
+# ============================================================
 
-    def _callback(hwnd, _):
-        if not _est_fenetre_utilisateur(hwnd):
+def est_totalement_occultee(rect, occulteurs_au_dessus):
+
+    region = gdi32.CreateRectRgn(
+        rect[0],
+        rect[1],
+        rect[2],
+        rect[3]
+    )
+
+    if not region:
+        return False
+
+    for orect in occulteurs_au_dessus:
+
+        oregion = gdi32.CreateRectRgn(
+            orect[0],
+            orect[1],
+            orect[2],
+            orect[3]
+        )
+
+        if not oregion:
+            continue
+
+        resultat = win32gui.CombineRgn(
+            region,
+            region,
+            oregion,
+            win32con.RGN_DIFF
+        )
+
+        win32gui.DeleteObject(oregion)
+
+        if resultat == win32con.NULLREGION:
+            win32gui.DeleteObject(region)
             return True
 
-        application, titre, pid = get_application_depuis_hwnd(hwnd)
+    win32gui.DeleteObject(region)
 
-        resultats.append({
-            "hwnd": hwnd,
-            "application": application,
-            "titre": titre
-        })
+    return False
+
+
+# ============================================================
+# Liste les applications réellement visibles
+# ============================================================
+
+def lister_applications():
+
+    z_order = []
+
+    def callback_enum(hwnd, resultats):
+
+        if fenetre_valide(hwnd):
+            resultats.append(hwnd)
+
         return True
 
-    win32gui.EnumWindows(_callback, None)
-    return resultats
+    win32gui.EnumWindows(callback_enum, z_order)
 
+    applications = []
 
-def application_active():
-    """
-    Retourne l'application actuellement active (au premier plan / focus),
-    sous forme de dict {hwnd, application, titre}, ou None si indisponible.
-    """
-    hwnd = win32gui.GetForegroundWindow()
+    for i, hwnd in enumerate(z_order):
 
-    if not hwnd or not win32gui.IsWindowVisible(hwnd):
-        return None
+        titre = win32gui.GetWindowText(hwnd)
 
-    application, titre, pid = get_application_depuis_hwnd(hwnd)
+        # Ignorer les fenêtres sans titre
+        if not titre.strip():
+            continue
 
-    return {
-        "hwnd": hwnd,
-        "application": application,
-        "titre": titre
-    }
+        rect = win32gui.GetWindowRect(hwnd)
 
+        # Fenêtres situées au-dessus
+        occulteurs_au_dessus = [
+            win32gui.GetWindowRect(h)
+            for h in z_order[:i]
+        ]
 
-def etat_applications():
-    """
-    Fusionne les deux sources :
-    - toutes les applications visibles par l'utilisateur (premier plan)
-    - l'application active
+        # Si complètement cachée, on ignore
+        if est_totalement_occultee(
+            rect,
+            occulteurs_au_dessus
+        ):
+            continue
 
-    Si l'application active est déjà présente dans la liste des applications
-    visibles (même hwnd), elle n'est pas dupliquée : elle est simplement
-    incluse une seule fois dans la liste finale.
-    """
-    apps = applications_premier_plan()
-    active = application_active()
+        # Récupération du processus
+        try:
+            _, pid = win32process.GetWindowThreadProcessId(hwnd)
 
-    if active is not None:
-        deja_present = any(app["hwnd"] == active["hwnd"] for app in apps)
-        if not deja_present:
-            apps.insert(0, active)
+            process = psutil.Process(pid)
 
-    # on ne garde que les champs demandés (application, titre) dans le résultat final
-    applications = [
-        {"application": app["application"], "titre": app["titre"]}
-        for app in apps
-    ]
+            nom_app = process.name()
+
+        except (
+            psutil.NoSuchProcess,
+            psutil.AccessDenied
+        ):
+            nom_app = "Inconnu"
+
+        # Ajouter uniquement application + titre
+        applications.append({
+            "application": nom_app,
+            "titre": titre
+        })
 
     return json.dumps({
         "applications": applications
-    }, ensure_ascii=False, indent=4)
+    })
 
+
+# ============================================================
+# Programme principal
+# ============================================================
 
 if __name__ == "__main__":
-    print(etat_applications())
+
+    resultat = lister_applications()
+
+    print(
+        json.dumps(
+            resultat,
+            ensure_ascii=False,
+            indent=4
+        )
+    )
