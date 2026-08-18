@@ -183,14 +183,14 @@ def lister_applications():
             nom_app = "Inconnu"
 
         # Ajouter uniquement application + titre
-        applications.append({
+        applications.append(json.dumps({
             "application": nom_app,
             "titre": titre
-        })
+        }))
 
-    return json.dumps({
+    return {
         "applications": applications
-    })
+    }
 
 
 # ============================================================

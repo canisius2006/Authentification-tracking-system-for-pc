@@ -65,19 +65,21 @@ def verifier_activite(application_id, activite):
            
 
         #Ici, si ce n'est pas nouveau , on incrémente le nombre de fois que l'infraction a été commis
-        if not created:
+        else :
             bad_action.nombre = F('nombre') + 1 
-            bad_action.save(update_fields=['nombre'])
+            bad_action.save(update_fields=["nombre"])
+            # Recharge la valeur réelle depuis la base
+            bad_action.refresh_from_db(fields=["nombre"])
             #On vérifie si l'utilisateur n'a pas passé plus de 2 minutes sur la mauvaise action
             if bad_action.nombre%6==0:
                 user = application.session.user
-                user.score = F('score') - 1
+                user.score = F('score') - 2 #On enlève deux points au lieu d'un seul
                 user.save(update_fields=['score'])
 
         # 6. Dans tous les cas (nouvelle action ou doublon), on met à jour les heures de fin
         session = application.session
-        session.heure_fin = timezone.now().time()
-        application.heure_fin = timezone.now().time()
+        session.heure_fin = timezone.localtime().time()
+        application.heure_fin = timezone.localtime().time()
 
         session.save(update_fields=['heure_fin'])
         application.save(update_fields=['heure_fin'])

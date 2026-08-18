@@ -146,8 +146,8 @@ class BadActionSerializer(serializers.ModelSerializer):
         session = action.application.session
         application = action.application 
         #Ici, on agit sur les heures de fin de chaque champ 
-        session.heure_fin = timezone.now().time()
-        application.heure_fin = timezone.now().time()
+        session.heure_fin = timezone.localtime().time()
+        application.heure_fin = timezone.localtime().time()
        
         #Ici, il faut faire l'enregistrement
         session.save(update_fields=['heure_fin'])

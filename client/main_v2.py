@@ -77,7 +77,7 @@ class Coeur():
         """Cette fonction va nous permettre de pouvoir créer une session quand l'utilisateur se connecte """
         url = f"http://{HOST}/api/session/"
         body = json.dumps({'pc':pc})
-        response = requests.post(url,headers={'Authorization':f"Bearer {self.access_token}"},body=body)
+        response = requests.post(url,headers={'Authorization':f"Bearer {self.access_token}",'Content-Type':'application/json'},data=body)
         if response.ok:
             self.session_id = response.json().get('id') #C'est l'id de la session active
             self.verifier_score() 
@@ -107,10 +107,10 @@ class Coeur():
     def poster_application(self):
         """Cette fonction va nous permettre de pouvoir poster l'application active au serveur """
         applications = application_monitor.lister_applications()
-        data_dict = json.loads(applications)
-        applications = data_dict['applications']
+        
+        applications = applications['applications']
         if len(applications)==0:
-          return
+            return
         for application in applications:
             url = f"http://{HOST}/api/application/"
             reponse = requests.post(url,data={'session':int(self.session_id),'nom':application},headers={'Authorization':f"Bearer {self.access_token}"})

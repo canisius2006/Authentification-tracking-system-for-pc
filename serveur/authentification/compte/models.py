@@ -29,7 +29,7 @@ def jour_actuelle():
 class Session_activite(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.CASCADE,related_name="sessions")
     jour = models.DateField(verbose_name='Jour',default=jour_actuelle)
-    pc = models.CharField(max_length=255,verbose_name='Nom du pc')
+    pc = models.CharField(max_length=255,verbose_name='Nom du pc',blank=True,null=True)
     heure_debut = models.TimeField(verbose_name='Heure de debut',default=heure_actuelle)
     heure_fin = models.TimeField(verbose_name='Heure de fin',default=heure_actuelle)
 
