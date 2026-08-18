@@ -120,7 +120,7 @@ class ApplicationSerializer(serializers.ModelSerializer):
         else:
             application = Application.objects.create(**validated_data)
         session = application.session 
-        session.heure_fin = timezone.now().time()
+        session.heure_fin = timezone.localtime().time()
         session.save(update_fields=['heure_fin'])
         #Faire la vérification si c'est bad avant de faire l'enregistrement 
         verifier_activite.delay(application.id,str_to_dict(validated_data.get('nom')))

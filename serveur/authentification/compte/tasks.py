@@ -2,10 +2,16 @@ from celery import shared_task
 from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
-
+from zoneinfo import ZoneInfo 
 from .models import Application, Bad_action
 from .analyseur import analyser_activite
 
+from django.conf import settings
+
+
+print("TIME_ZONE :", settings.TIME_ZONE)
+print("UTC       :", timezone.now())
+print("LOCAL     :", timezone.localtime())
 
 
 @shared_task
@@ -78,8 +84,8 @@ def verifier_activite(application_id, activite):
 
         # 6. Dans tous les cas (nouvelle action ou doublon), on met à jour les heures de fin
         session = application.session
-        session.heure_fin = timezone.localtime().time()
-        application.heure_fin = timezone.localtime().time()
+        session.heure_fin = timezone.now().astimezone(ZoneInfo("Africa/Porto-Novo")).time() 
+        application.heure_fin = timezone.now().astimezone(ZoneInfo("Africa/Porto-Novo")).time() 
 
         session.save(update_fields=['heure_fin'])
         application.save(update_fields=['heure_fin'])
