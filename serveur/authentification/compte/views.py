@@ -146,7 +146,7 @@ class CheckUsernameApiView(APIView):
 #Construction de la view api pour l'administrateur afin pour qu'il voir la liste des sessions par utilisateur
 
 class VoirSessionUtilisateurApiView(APIView):
-    #permission_classes = [IsAdminUser]
+    permission_classes = [IsAdminUser]
     def get(self,request):
         user = request.query_params.get('user')
         if user is None:
@@ -170,7 +170,7 @@ class VoirSessionUtilisateurApiView(APIView):
 #Construction de la view api pour l'administrateur afin pour qu'il voir la liste des applications par session
 
 class VoirApplicationSessionApiView(APIView):
-    #permission_classes = [IsAdminUser]
+    permission_classes = [IsAdminUser]
     def get(self,request):
         session_id = request.query_params.get('session_id')
         if session_id is None:
@@ -190,7 +190,7 @@ class VoirApplicationSessionApiView(APIView):
 #Construction de la view api pour l'administrateur afin pour qu'il voir la liste des bad_actions par utilisateur
 
 class VoirBadActionUtilisateurPerUserApiView(APIView):
-    #permission_classes = [IsAdminUser]
+    permission_classes = [IsAdminUser]
     def get(self,request):
         user = request.query_params.get('user')
         if user is None:
@@ -213,7 +213,7 @@ class VoirBadActionUtilisateurPerUserApiView(APIView):
 #Construction de la view api pour l'administrateur afin pour qu'il voir la liste des bad_actions par session
 
 class VoirBadActionUtilisateurPerSessionApiView(APIView):
-    #permission_classes = [IsAdminUser]
+    permission_classes = [IsAdminUser]
     def get(self,request):
         session_id = request.query_params.get('session_id')
         if session_id is None:
