@@ -216,6 +216,27 @@
                         <option value="today">Inscrits aujourd'hui</option>
                         <option value="7days">7 derniers jours</option>
                     </select>
+
+                    <!-- Filtre par Note/Score -->
+                    <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-300 rounded-xl p-1.5">
+                        <select id="filter-score-op" onchange="onScoreOpChange()" class="bg-transparent text-slate-700 text-xs rounded-lg focus:ring-0 border-0 font-medium cursor-pointer">
+                            <option value="">Note : Toutes</option>
+                            <option value="gte">Note &ge;</option>
+                            <option value="lte">Note &le;</option>
+                            <option value="eq">Note =</option>
+                            <option value="between">Note entre</option>
+                        </select>
+                        <input type="number" id="filter-score-val" min="0" max="20" step="0.25" placeholder="0-20"
+                            oninput="applyFilters()"
+                            class="hidden w-16 bg-white border border-slate-300 text-slate-700 text-xs rounded-lg p-1.5 font-medium focus:ring-brand-500 focus:border-brand-500">
+                        <input type="number" id="filter-score-min" min="0" max="20" step="0.25" placeholder="Min"
+                            oninput="applyFilters()"
+                            class="hidden w-14 bg-white border border-slate-300 text-slate-700 text-xs rounded-lg p-1.5 font-medium focus:ring-brand-500 focus:border-brand-500">
+                        <span id="filter-score-sep" class="hidden text-xs text-slate-400">–</span>
+                        <input type="number" id="filter-score-max" min="0" max="20" step="0.25" placeholder="Max"
+                            oninput="applyFilters()"
+                            class="hidden w-14 bg-white border border-slate-300 text-slate-700 text-xs rounded-lg p-1.5 font-medium focus:ring-brand-500 focus:border-brand-500">
+                    </div>
                 </div>
             </div>
         </div>
@@ -1076,10 +1097,37 @@
         }
 
         // Apply Filters & Search
+        function onScoreOpChange() {
+            const op = document.getElementById('filter-score-op').value;
+            const valInput = document.getElementById('filter-score-val');
+            const minInput = document.getElementById('filter-score-min');
+            const maxInput = document.getElementById('filter-score-max');
+            const sep = document.getElementById('filter-score-sep');
+
+            valInput.classList.add('hidden');
+            minInput.classList.add('hidden');
+            maxInput.classList.add('hidden');
+            sep.classList.add('hidden');
+
+            if (op === 'gte' || op === 'lte' || op === 'eq') {
+                valInput.classList.remove('hidden');
+            } else if (op === 'between') {
+                minInput.classList.remove('hidden');
+                sep.classList.remove('hidden');
+                maxInput.classList.remove('hidden');
+            }
+
+            applyFilters();
+        }
+
         function applyFilters() {
             const searchQuery = document.getElementById('search-input').value.toLowerCase().trim();
             const sexeFilter = document.getElementById('filter-sexe').value;
             const dateFilter = document.getElementById('filter-date').value;
+            const scoreOp = document.getElementById('filter-score-op').value;
+            const scoreVal = parseFloat(document.getElementById('filter-score-val').value);
+            const scoreMin = parseFloat(document.getElementById('filter-score-min').value);
+            const scoreMax = parseFloat(document.getElementById('filter-score-max').value);
 
             filteredUsers = pendingUsers.filter(user => {
                 const fullName = `${user.first_name && user.first_name !== 'string' ? user.first_name : ''} ${user.last_name && user.last_name !== 'string' ? user.last_name : ''}`.toLowerCase();
@@ -1108,7 +1156,26 @@
                     }
                 }
 
-                return matchesSearch && matchesSexe && matchesDate;
+                const userScore = user.score !== undefined && user.score !== null ? parseFloat(user.score) : null;
+                let matchesScore = true;
+                if (scoreOp && userScore !== null && !isNaN(userScore)) {
+                    if (scoreOp === 'gte' && !isNaN(scoreVal)) {
+                        matchesScore = userScore >= scoreVal;
+                    } else if (scoreOp === 'lte' && !isNaN(scoreVal)) {
+                        matchesScore = userScore <= scoreVal;
+                    } else if (scoreOp === 'eq' && !isNaN(scoreVal)) {
+                        matchesScore = userScore === scoreVal;
+                    } else if (scoreOp === 'between') {
+                        const min = !isNaN(scoreMin) ? scoreMin : -Infinity;
+                        const max = !isNaN(scoreMax) ? scoreMax : Infinity;
+                        matchesScore = userScore >= min && userScore <= max;
+                    }
+                } else if (scoreOp) {
+                    // Un opérateur est choisi mais l'utilisateur n'a pas de note valide
+                    matchesScore = false;
+                }
+
+                return matchesSearch && matchesSexe && matchesDate && matchesScore;
             });
 
             updateStats();
@@ -1388,7 +1455,11 @@
             document.getElementById('search-input').value = '';
             document.getElementById('filter-sexe').value = '';
             document.getElementById('filter-date').value = 'all';
-            applyFilters();
+            document.getElementById('filter-score-op').value = '';
+            document.getElementById('filter-score-val').value = '';
+            document.getElementById('filter-score-min').value = '';
+            document.getElementById('filter-score-max').value = '';
+            onScoreOpChange();
         }
 
         function copyModalActivationCode() {
