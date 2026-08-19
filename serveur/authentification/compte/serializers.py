@@ -161,5 +161,6 @@ class ActivationCompteSerializer(serializers.Serializer):
     activation_code = serializers.CharField(max_length=4)
 
 
+#Créaction des sérializers pour notre champ 
 
 

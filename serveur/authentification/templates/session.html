@@ -1,0 +1,423 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Sessions Utilisateur{% endblock title %}
+
+{% block head %}
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sessions Utilisateur</title>
+<!-- Tailwind CSS CDN -->
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- FontAwesome Icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<!-- Inter Font -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                fontFamily: {
+                    sans: ['Inter', 'sans-serif'],
+                },
+                colors: {
+                    brand: {
+                        50: '#eff6ff',
+                        100: '#dbeafe',
+                        500: '#3b82f6',
+                        600: '#2563eb',
+                        700: '#1d4ed8',
+                    }
+                }
+            }
+        }
+    }
+</script>
+<style>
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: #f1f5f9;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+    }
+</style>
+{% endblock head %}
+
+{% block body %}
+<body class="h-full font-sans text-slate-800 antialiased bg-slate-50 flex flex-col min-h-screen">
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2 pointer-events-none max-w-sm w-full"></div>
+
+    <!-- Header Navbar -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col sm:flex-row items-center justify-between py-3 sm:py-0 sm:h-16 gap-3 sm:gap-0">
+                <!-- Brand Title & Back Button -->
+                <div class="flex items-center space-x-4 w-full sm:w-auto justify-between sm:justify-start">
+                    
+                    <button onclick="window.history.back()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors" title="Retour à la liste">
+                        <i class="fa-solid fa-arrow-left"></i>
+                    </button>
+
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-xl bg-brand-600 flex items-center justify-center text-white shadow-md shadow-brand-500/20 font-bold text-lg">
+                            <i class="fa-solid fa-network-wired"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-lg font-bold text-slate-900 leading-tight">Historique des Sessions</h1>
+                            <p class="text-xs text-brand-600 font-medium flex items-center gap-1.5">
+                                <span id="api-status-dot" class="w-2 h-2 rounded-full bg-slate-300"></span>
+                                <span id="api-status-text">Recherche de l'utilisateur...</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Action Header -->
+                <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
+                    <div class="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 rounded-xl border border-slate-200 items-center gap-2 flex">
+                        <i class="fa-solid fa-user-tag text-slate-400"></i>
+                        Cible : <span id="target-user-badge" class="font-mono font-bold text-brand-700">--</span>
+                    </div>
+
+                    <button onclick="fetchUserSessions()" class="px-3.5 py-2 text-xs font-semibold text-white bg-slate-800 hover:bg-slate-900 rounded-xl transition-colors flex items-center gap-2 shadow-sm">
+                        <i class="fa-solid fa-rotate-right" id="refresh-icon"></i>
+                        <span class="hidden sm:inline">Actualiser</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+                <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-xl flex-shrink-0">
+                    <i class="fa-solid fa-list-ol"></i>
+                </div>
+                <div>
+                    <p class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Sessions</p>
+                    <h3 id="stat-total" class="text-2xl font-bold text-slate-900 mt-0.5">0</h3>
+                </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+                <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center text-xl flex-shrink-0">
+                    <i class="fa-solid fa-stopwatch"></i>
+                </div>
+                <div>
+                    <p class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Dernière session le</p>
+                    <h3 id="stat-last-date" class="text-sm font-bold text-slate-900 mt-1">--/--/----</h3>
+                </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+                <div class="w-12 h-12 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center text-xl flex-shrink-0">
+                    <i class="fa-solid fa-desktop"></i>
+                </div>
+                <div>
+                    <p class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Dernier Poste PC</p>
+                    <h3 id="stat-last-pc" class="text-sm font-bold text-slate-900 mt-1 font-mono">--</h3>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dynamic Content Container -->
+        <div id="data-container" class="relative min-h-[300px] bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            
+            <!-- Header Table Controls -->
+            <div class="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                <h2 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-clock-rotate-left text-slate-400"></i> Détail des connexions
+                </h2>
+            </div>
+
+            <!-- Loading State -->
+            <div id="loading-state" class="flex flex-col items-center justify-center py-20">
+                <div class="w-10 h-10 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin"></div>
+                <p class="text-sm font-semibold text-slate-700 mt-4">Récupération des sessions...</p>
+            </div>
+
+            <!-- Error State -->
+            <div id="error-state" class="hidden py-16 text-center space-y-3 px-4">
+                <div class="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto text-xl">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <h3 class="text-base font-bold text-red-900">Erreur de chargement</h3>
+                <p id="error-message-text" class="text-xs text-red-700 max-w-md mx-auto"></p>
+                <button onclick="fetchUserSessions()" class="mt-4 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition-colors inline-block">
+                    Réessayer
+                </button>
+            </div>
+
+            <!-- Empty State -->
+            <div id="empty-state" class="hidden py-20 text-center px-4">
+                <div class="w-16 h-16 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto text-2xl mb-4">
+                    <i class="fa-solid fa-ghost"></i>
+                </div>
+                <h3 class="text-base font-bold text-slate-800">Aucune session trouvée</h3>
+                <p class="text-xs text-slate-500 mt-1">Cet utilisateur ne s'est encore jamais connecté ou les données ont été purgées.</p>
+            </div>
+
+            <!-- Data Table -->
+            <div id="table-container" class="hidden overflow-x-auto custom-scrollbar">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50 border-b border-slate-200 text-[10px] uppercase tracking-wider font-bold text-slate-500">
+                            <th class="px-6 py-3">ID</th>
+                            <th class="px-6 py-3">Jour</th>
+                            <th class="px-6 py-3">Poste (PC)</th>
+                            <th class="px-6 py-3">Heure de début</th>
+                            <th class="px-6 py-3">Heure de fin</th>
+                            <th class="px-6 py-3 text-right">Durée</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sessions-tbody" class="divide-y divide-slate-100 text-sm">
+                        <!-- Rows injected via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // ===================================================================
+        // CONFIGURATION & ETAT
+        // ===================================================================
+        let API_BASE_URL = (localStorage.getItem('api_base_url') || `http://${window.location.host}`).replace(/\/+$/, '');
+        let targetUser = new URLSearchParams(window.location.search).get('user'); // Ex: ?user=amen ou ?user=6
+        let sessionsData = [];
+
+        window.onload = function() {
+            if (!targetUser) {
+                showError("Aucun utilisateur spécifié dans l'URL (paramètre ?user= manquant).");
+                return;
+            }
+            
+            document.getElementById('target-user-badge').innerText = targetUser;
+            fetchUserSessions();
+        };
+
+        function getAuthHeaders() {
+            const token = localStorage.getItem('access_token');
+            const headers = { 'Accept': 'application/json', 'Content-Type': 'application/json' };
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+            return headers;
+        }
+
+        // ===================================================================
+        // APPEL API
+        // ===================================================================
+        async function fetchUserSessions() {
+            const loadingState = document.getElementById('loading-state');
+            const errorState = document.getElementById('error-state');
+            const tableContainer = document.getElementById('table-container');
+            const emptyState = document.getElementById('empty-state');
+            const refreshIcon = document.getElementById('refresh-icon');
+
+            loadingState.classList.remove('hidden');
+            errorState.classList.add('hidden');
+            tableContainer.classList.add('hidden');
+            emptyState.classList.add('hidden');
+            if(refreshIcon) refreshIcon.classList.add('animate-spin');
+
+            updateStatusBadge('loading', 'Connexion à l\'API...');
+
+            try {
+                // Construction de l'URL avec le paramètre utilisateur
+                const endpoint = `${API_BASE_URL}/api/session-par-utilisateur/?user=${encodeURIComponent(targetUser)}`;
+                
+                const response = await fetch(endpoint, {
+                    method: 'GET',
+                    headers: getAuthHeaders()
+                });
+
+                if (response.status === 401) {
+                    throw new Error("Session expirée. Veuillez retourner sur la page précédente pour vous reconnecter.");
+                }
+
+                if (!response.ok) {
+                    throw new Error(`Erreur HTTP ${response.status} : ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                
+                // Gère le cas où l'API renvoie un tableau directement ou encapsulé
+                sessionsData = Array.isArray(data) ? data : (data.results || data.data || []);
+
+                updateStatusBadge('success', 'Connecté');
+                renderData();
+
+            } catch (error) {
+                console.error("API Fetch Error:", error);
+                showError(error.message);
+            } finally {
+                loadingState.classList.add('hidden');
+                if(refreshIcon) refreshIcon.classList.remove('animate-spin');
+            }
+        }
+
+        // ===================================================================
+        // RENDU UI
+        // ===================================================================
+        function renderData() {
+            const tableContainer = document.getElementById('table-container');
+            const emptyState = document.getElementById('empty-state');
+            const tbody = document.getElementById('sessions-tbody');
+
+            // Mise à jour des statistiques
+            document.getElementById('stat-total').innerText = sessionsData.length;
+            
+            if (sessionsData.length > 0) {
+                // Tri des sessions par date et heure de début décroissante (les plus récentes en haut)
+                sessionsData.sort((a, b) => {
+                    const dateA = new Date(`${a.jour}T${a.heure_debut}`);
+                    const dateB = new Date(`${b.jour}T${b.heure_debut}`);
+                    return dateB - dateA;
+                });
+
+                const lastSession = sessionsData[0];
+                document.getElementById('stat-last-date').innerText = formatDateFR(lastSession.jour);
+                document.getElementById('stat-last-pc').innerText = lastSession.pc || '--';
+            } else {
+                document.getElementById('stat-last-date').innerText = '--/--/----';
+                document.getElementById('stat-last-pc').innerText = '--';
+            }
+
+            // Remplissage du tableau
+            tbody.innerHTML = '';
+
+            if (sessionsData.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            tableContainer.classList.remove('hidden');
+
+            sessionsData.forEach(session => {
+                const tr = document.createElement('tr');
+                // Remplacement du survol discret par un fond bleuté visible et une transition fluide
+                tr.className = "hover:bg-brand-50/60 transition-all duration-200 group cursor-pointer";
+                tr.onclick = () => { const url = new URL(`${API_BASE_URL}/session_detail/?id=${session.id}`)
+                    window.location.href = url}
+
+                const heureDebut = formatTime(session.heure_debut);
+                const heureFin = session.heure_fin ? formatTime(session.heure_fin) : '<span class="text-emerald-500 font-semibold animate-pulse">En cours...</span>';
+                const duree = calculerDuree(session.heure_debut, session.heure_fin);
+
+                tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="font-mono text-slate-500 text-xs">#${session.id}</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-regular fa-calendar text-slate-400 group-hover:text-brand-500 transition-colors"></i>
+                            <span class="font-medium text-slate-700 group-hover:text-brand-700 transition-colors">${formatDateFR(session.jour)}</span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 py-1 bg-slate-100 text-slate-700 font-mono text-xs rounded border border-slate-200 group-hover:bg-white group-hover:border-brand-200 transition-colors">${session.pc}</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center gap-2 text-slate-600 font-mono text-xs">
+                            <i class="fa-solid fa-play text-emerald-500 text-[10px]"></i> ${heureDebut}
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center gap-2 text-slate-600 font-mono text-xs">
+                            <i class="fa-solid fa-stop text-red-400 text-[10px]"></i> ${heureFin}
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right flex items-center justify-end gap-3">
+                        <span class="font-semibold text-slate-800 text-xs">${duree}</span>
+                        <!-- Ajout d'un effet de translation (glissement vers la droite) au survol -->
+                        <i class="fa-solid fa-chevron-right text-slate-300 group-hover:text-brand-600 group-hover:translate-x-1 transition-all duration-200"></i>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // ===================================================================
+        // HELPERS (Utilitaires)
+        // ===================================================================
+        function showError(message) {
+            document.getElementById('error-message-text').innerText = message || "Impossible de récupérer les données.";
+            document.getElementById('error-state').classList.remove('hidden');
+            updateStatusBadge('error', 'Erreur de connexion');
+            showToast(message, 'warning');
+        }
+
+        function updateStatusBadge(status, text) {
+            const dot = document.getElementById('api-status-dot');
+            const textEl = document.getElementById('api-status-text');
+
+            if (status === 'success') {
+                dot.className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
+            } else if (status === 'error') {
+                dot.className = "w-2 h-2 rounded-full bg-red-500";
+            } else {
+                dot.className = "w-2 h-2 rounded-full bg-amber-500 animate-ping";
+            }
+            textEl.innerText = text;
+        }
+
+        function showToast(message, type = "info") {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+
+            let bgColors = type === "warning" ? "bg-amber-600 text-white shadow-amber-500/20" : "bg-slate-900 text-white";
+            let icon = type === "warning" ? "fa-triangle-exclamation" : "fa-circle-info";
+
+            toast.className = `pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg ${bgColors} text-xs font-semibold transition-all transform translate-y-2 duration-200`;
+            toast.innerHTML = `<i class="fa-solid ${icon} text-sm"></i> <span>${message}</span>`;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', '-translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        // Tronque les microsecondes (ex: 09:41:04.222679 -> 09:41:04)
+        function formatTime(timeStr) {
+            if (!timeStr) return '--:--:--';
+            return timeStr.split('.')[0]; 
+        }
+
+        // Formate AAAA-MM-JJ en JJ/MM/AAAA
+        function formatDateFR(dateStr) {
+            if (!dateStr) return 'Date inconnue';
+            const [year, month, day] = dateStr.split('-');
+            return `${day}/${month}/${year}`;
+        }
+
+        // Calcule la différence entre deux heures (format HH:MM:SS)
+        function calculerDuree(debutStr, finStr) {
+            if (!debutStr || !finStr) return '--';
+            
+            // On crée des dates arbitraires le même jour pour calculer la différence
+            const dateDebut = new Date(`1970-01-01T${debutStr}Z`);
+            const dateFin = new Date(`1970-01-01T${finStr}Z`);
+            
+            let diffMs = dateFin - dateDebut;
+            if (diffMs < 0) diffMs += 24 * 60 * 60 * 1000; // Si la session traverse minuit
+            
+            const diffHrs = Math.floor((diffMs % 86400000) / 3600000);
+            const diffMins = Math.round(((diffMs % 86400000) % 3600000) / 60000);
+            
+            if (diffHrs === 0) return `${diffMins} min`;
+            return `${diffHrs}h ${diffMins.toString().padStart(2, '0')}m`;
+        }
+    </script>
+</body>
+{% endblock body %}

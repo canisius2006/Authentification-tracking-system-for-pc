@@ -1,0 +1,430 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Détails de la Session{% endblock title %}
+
+{% block head %}
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Détails de la Session</title>
+<!-- Tailwind CSS CDN -->
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- FontAwesome Icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<!-- Inter Font -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                fontFamily: {
+                    sans: ['Inter', 'sans-serif'],
+                },
+                colors: {
+                    brand: {
+                        50: '#eff6ff',
+                        100: '#dbeafe',
+                        500: '#3b82f6',
+                        600: '#2563eb',
+                        700: '#1d4ed8',
+                    }
+                }
+            }
+        }
+    }
+</script>
+<style>
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+    }
+    .custom-scrollbar:hover::-webkit-scrollbar-thumb {
+        background: #94a3b8;
+    }
+    /* Hauteur dynamique pour les panneaux */
+    .panel-height {
+        height: calc(100vh - 180px);
+    }
+</style>
+{% endblock head %}
+
+{% block body %}
+<body class="h-full font-sans text-slate-800 antialiased bg-slate-100 flex flex-col min-h-screen">
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2 pointer-events-none max-w-sm w-full"></div>
+
+    <!-- Header Navbar -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col sm:flex-row items-center justify-between py-3 sm:py-0 sm:h-16 gap-3 sm:gap-0">
+                <!-- Brand Title & Back Button -->
+                <div class="flex items-center space-x-4 w-full sm:w-auto justify-between sm:justify-start">
+                    <button onclick="window.history.back()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors" title="Retour">
+                        <i class="fa-solid fa-arrow-left"></i>
+                    </button>
+
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/20 font-bold text-lg">
+                            <i class="fa-solid fa-fingerprint"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-lg font-bold text-slate-900 leading-tight">Analyse de la Session</h1>
+                            <p class="text-xs text-indigo-600 font-medium flex items-center gap-1.5">
+                                <span id="api-status-dot" class="w-2 h-2 rounded-full bg-slate-300"></span>
+                                <span id="api-status-text">Chargement des données...</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Action Header -->
+                <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
+                    <div class="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 rounded-xl border border-slate-200 items-center gap-2 flex">
+                        <i class="fa-solid fa-hashtag text-slate-400"></i>
+                        Session ID : <span id="session-id-badge" class="font-mono font-bold text-indigo-700">--</span>
+                    </div>
+
+                    <button onclick="fetchSessionData()" class="px-3.5 py-2 text-xs font-semibold text-white bg-slate-800 hover:bg-slate-900 rounded-xl transition-colors flex items-center gap-2 shadow-sm">
+                        <i class="fa-solid fa-rotate-right" id="refresh-icon"></i>
+                        <span class="hidden sm:inline">Actualiser</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-[1400px] w-full mx-auto px-4 py-6">
+        
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
+            
+            <!-- COLONNE GAUCHE : Applications ouvertes -->
+            <div class="flex flex-col bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <!-- Header Gauche -->
+                <div class="p-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between z-10">
+                    <h2 class="text-[15px] font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-bars-staggered text-blue-500"></i> Applications ouvertes
+                    </h2>
+                    <span id="app-count" class="px-2.5 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded-lg border border-blue-200 shadow-sm">0</span>
+                </div>
+                
+                <!-- Loader Gauche -->
+                <div id="apps-loading" class="flex-1 flex flex-col items-center justify-center py-20 hidden">
+                    <div class="w-8 h-8 border-3 border-blue-200 border-t-blue-500 rounded-full animate-spin"></div>
+                </div>
+
+                <!-- Contenu Gauche (Scrollable) -->
+                <div id="apps-container" class="flex-1 p-4 overflow-y-auto custom-scrollbar panel-height bg-slate-50/30 space-y-3 relative">
+                    <!-- Les applications seront injectées ici par JS -->
+                </div>
+            </div>
+
+            <!-- COLONNE DROITE : Bad Actions -->
+            <div class="flex flex-col bg-white rounded-2xl border border-red-200 shadow-sm shadow-red-100/50 overflow-hidden">
+                <!-- Header Droite -->
+                <div class="p-4 border-b border-red-100 bg-red-50/50 flex items-center justify-between z-10">
+                    <h2 class="text-[15px] font-bold text-red-900 flex items-center gap-2">
+                        <i class="fa-solid fa-triangle-exclamation text-red-500"></i> Actions Inappropriées
+                    </h2>
+                    <span id="bad-count" class="px-2.5 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-lg border border-red-200 shadow-sm">0</span>
+                </div>
+
+                <!-- Loader Droite -->
+                <div id="bad-loading" class="flex-1 flex flex-col items-center justify-center py-20 hidden">
+                    <div class="w-8 h-8 border-3 border-red-200 border-t-red-500 rounded-full animate-spin"></div>
+                </div>
+
+                <!-- Contenu Droite (Scrollable) -->
+                <div id="bad-actions-container" class="flex-1 p-4 overflow-y-auto custom-scrollbar panel-height bg-red-50/10 space-y-3 relative">
+                    <!-- Les bad actions seront injectées ici par JS -->
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <script>
+        // ===================================================================
+        // INITIALISATION
+        // ===================================================================
+        let API_BASE_URL = (localStorage.getItem('api_base_url') || `http://${window.location.host}`).replace(/\/+$/, '');
+        // On récupère l'ID soit par "session_id", soit par "id" depuis l'URL
+        let targetSessionId = new URLSearchParams(window.location.search).get('session_id') || new URLSearchParams(window.location.search).get('id');
+
+        window.onload = function() {
+            if (!targetSessionId) {
+                showError("Aucun ID de session spécifié dans l'URL.");
+                return;
+            }
+            
+            document.getElementById('session-id-badge').innerText = targetSessionId;
+            fetchSessionData();
+        };
+
+        function getAuthHeaders() {
+            const token = localStorage.getItem('access_token');
+            const headers = { 'Accept': 'application/json', 'Content-Type': 'application/json' };
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+            return headers;
+        }
+
+        // ===================================================================
+        // APPELS API SYNCHRONISES (Promise.all)
+        // ===================================================================
+        async function fetchSessionData() {
+            const refreshIcon = document.getElementById('refresh-icon');
+            const appsLoading = document.getElementById('apps-loading');
+            const badLoading = document.getElementById('bad-loading');
+            
+            const appsContainer = document.getElementById('apps-container');
+            const badContainer = document.getElementById('bad-actions-container');
+
+            if(refreshIcon) refreshIcon.classList.add('animate-spin');
+            
+            appsContainer.innerHTML = ''; badContainer.innerHTML = '';
+            appsLoading.classList.remove('hidden'); badLoading.classList.remove('hidden');
+            updateStatusBadge('loading', 'Analyse en cours...');
+
+            try {
+                // On lance les deux requêtes en même temps pour plus de rapidité
+                const [appsResponse, badResponse] = await Promise.all([
+                    fetch(`${API_BASE_URL}/api/application-par-session/?session_id=${targetSessionId}`, { headers: getAuthHeaders() }),
+                    fetch(`${API_BASE_URL}/api/badaction-par-session/?session_id=${targetSessionId}`, { headers: getAuthHeaders() })
+                ]);
+
+                if (!appsResponse.ok || !badResponse.ok) {
+                    throw new Error("Erreur lors de la récupération des détails de la session.");
+                }
+
+                const appsData = await appsResponse.json();
+                const badData = await badResponse.json();
+                
+                // Gérer les cas où l'API encapsule les résultats
+                const appsList = Array.isArray(appsData) ? appsData : (appsData.results || appsData.data || []);
+                const badList = Array.isArray(badData) ? badData : (badData.results || badData.data || []);
+
+                renderApps(appsList);
+                renderBadActions(badList);
+                updateStatusBadge('success', 'Synchronisé');
+
+            } catch (error) {
+                console.error("API Fetch Error:", error);
+                showError(error.message);
+                appsContainer.innerHTML = `<div class="text-center text-red-500 py-10 text-sm"><i class="fa-solid fa-triangle-exclamation mb-2 text-xl block"></i>Impossible de charger les applications.</div>`;
+                badContainer.innerHTML = `<div class="text-center text-red-500 py-10 text-sm"><i class="fa-solid fa-triangle-exclamation mb-2 text-xl block"></i>Impossible de charger les alertes.</div>`;
+            } finally {
+                appsLoading.classList.add('hidden');
+                badLoading.classList.add('hidden');
+                if(refreshIcon) refreshIcon.classList.remove('animate-spin');
+            }
+        }
+
+        // ===================================================================
+        // RENDU : COLONNE GAUCHE (Applications)
+        // ===================================================================
+        function renderApps(apps) {
+            const container = document.getElementById('apps-container');
+            document.getElementById('app-count').innerText = apps.length;
+            
+            if (apps.length === 0) {
+                container.innerHTML = `
+                    <div class="h-full flex flex-col items-center justify-center text-slate-400 p-6 text-center">
+                        <i class="fa-solid fa-ghost text-4xl mb-3 text-slate-300"></i>
+                        <p class="text-sm">Aucune activité applicative enregistrée pour cette session.</p>
+                    </div>`;
+                return;
+            }
+
+            // Tri par ID ou par heure
+            apps.sort((a, b) => a.id - b.id);
+
+            let htmlStr = '';
+            apps.forEach(app => {
+                let parsedNom = {};
+                try {
+                    // Tente de parser la chaîne de caractères JSON du champ 'nom'
+                    parsedNom = JSON.parse(app.nom);
+                } catch(e) {
+                    console.warn("Impossible de parser le nom de l'app", app.nom);
+                }
+
+                const appName = parsedNom.application || "Application inconnue";
+                const appTitle = parsedNom.titre || app.nom || "--";
+                const iconClass = getIconForApp(appName);
+
+                htmlStr += `
+                    <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-start gap-3.5 hover:border-blue-300 hover:shadow-md transition-all group">
+                        <div class="w-10 h-10 rounded-lg bg-slate-50 border border-slate-100 flex flex-shrink-0 items-center justify-center text-xl">
+                            <i class="${iconClass}"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h4 class="text-[13px] font-semibold text-slate-800 leading-tight mb-1" title="${appTitle.replace(/"/g, '&quot;')}">
+                                ${appTitle}
+                            </h4>
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="text-[10px] uppercase tracking-wider font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">${appName}</span>
+                                <span class="text-[10px] text-slate-400">ID: ${app.id}</span>
+                            </div>
+                            
+                            <div class="flex items-center gap-2 text-[11px] font-mono font-medium text-slate-500 bg-slate-50 w-fit px-2 py-1 rounded-md border border-slate-100">
+                                <span class="flex items-center gap-1.5"><div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div> ${formatTime(app.heure_debut)}</span>
+                                <span class="text-slate-300">|</span>
+                                <span class="flex items-center gap-1.5"><div class="w-1.5 h-1.5 rounded-full bg-red-400"></div> ${formatTime(app.heure_fin)}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = htmlStr;
+        }
+
+        // ===================================================================
+        // RENDU : COLONNE DROITE (Bad Actions)
+        // ===================================================================
+        function renderBadActions(badActions) {
+            const container = document.getElementById('bad-actions-container');
+            document.getElementById('bad-count').innerText = badActions.length;
+            
+            if (badActions.length === 0) {
+                container.innerHTML = `
+                    <div class="h-full flex flex-col items-center justify-center text-slate-400 p-6 text-center">
+                        <div class="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center text-3xl mb-3">
+                            <i class="fa-solid fa-shield-check"></i>
+                        </div>
+                        <p class="text-sm font-medium text-slate-600">Tout est clean !</p>
+                        <p class="text-xs mt-1">Aucune action inappropriée n'a été détectée.</p>
+                    </div>`;
+                return;
+            }
+
+            // Tri de la plus récente à la plus ancienne
+            badActions.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+            let htmlStr = '';
+            badActions.forEach(bad => {
+                const justificationTxt = extractJustificationText(bad.justification);
+                const time = new Date(bad.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute:'2-digit', second:'2-digit' });
+
+                htmlStr += `
+                    <div class="bg-white p-4 rounded-xl border border-red-200 shadow-sm flex items-start gap-4 hover:bg-red-50/30 transition-colors relative overflow-hidden group">
+                        
+                        <!-- Barre latérale rouge -->
+                        <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-red-500 group-hover:bg-red-600 transition-colors"></div>
+
+                        <div class="w-10 h-10 rounded-full bg-red-100 text-red-600 flex flex-shrink-0 items-center justify-center text-lg mt-0.5 ring-4 ring-red-50">
+                            <i class="fa-solid fa-ban"></i>
+                        </div>
+                        
+                        <div class="flex-1 min-w-0 z-10">
+                            <div class="flex justify-between items-start mb-1.5">
+                                <h4 class="text-sm font-bold text-red-950 pr-3 leading-snug">${bad.titre}</h4>
+                                <span class="text-[10px] font-mono font-bold text-red-600 bg-red-100 px-2 py-1 rounded-md whitespace-nowrap shadow-sm border border-red-200 flex items-center gap-1">
+                                    <i class="fa-regular fa-clock"></i> ${time}
+                                </span>
+                            </div>
+                            
+                            <p class="text-[12px] text-slate-600 leading-relaxed mb-3">${justificationTxt}</p>
+                            
+                            <div class="flex items-center gap-3">
+                                ${bad.application_id ? `
+                                    <span class="inline-flex items-center gap-1.5 text-[10px] font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded-md border border-slate-200">
+                                        <i class="fa-solid fa-link text-slate-400"></i> App ID: ${bad.application_id}
+                                    </span>
+                                ` : ''}
+                                ${bad.nombre !== undefined ? `
+                                    <span class="inline-flex items-center gap-1.5 text-[10px] font-medium text-orange-600 bg-orange-50 px-2 py-1 rounded-md border border-orange-200">
+                                        <i class="fa-solid fa-repeat"></i> Répété ${bad.nombre} fois
+                                    </span>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = htmlStr;
+        }
+
+        // ===================================================================
+        // UTILITAIRES & HELPERS
+        // ===================================================================
+        
+        // Déduit un icône FontAwesome en fonction du nom du .exe
+        function getIconForApp(appName) {
+            if (!appName) return 'fa-regular fa-window-maximize text-slate-400';
+            const lower = appName.toLowerCase();
+            if (lower.includes('firefox')) return 'fa-brands fa-firefox-browser text-[#FF7139]';
+            if (lower.includes('chrome')) return 'fa-brands fa-chrome text-[#4285F4]';
+            if (lower.includes('edge') || lower.includes('msedge')) return 'fa-brands fa-edge text-[#0078D7]';
+            if (lower.includes('explorer')) return 'fa-regular fa-folder-open text-[#FFC107]';
+            if (lower.includes('winword') || lower.includes('word')) return 'fa-solid fa-file-word text-[#2B579A]';
+            if (lower.includes('excel')) return 'fa-solid fa-file-excel text-[#217346]';
+            if (lower.includes('powerpnt')) return 'fa-solid fa-file-powerpoint text-[#B7472A]';
+            if (lower.includes('code') || lower.includes('vscode')) return 'fa-solid fa-code text-[#007ACC]';
+            return 'fa-regular fa-window-maximize text-slate-400';
+        }
+
+        // Extrait intelligemment le texte de la justification depuis le faux dictionnaire Python
+        function extractJustificationText(str) {
+            if (!str) return "Justification indisponible.";
+            // Expression régulière qui cherche la clé 'justification' et capture la chaîne correspondante
+            const match = str.match(/['"]justification['"]\s*:\s*(['"])(.*?)\1/);
+            if (match && match[2]) {
+                return match[2];
+            }
+            return str; // Retourne le bloc complet s'il n'arrive pas à extraire
+        }
+
+        // Formate l'heure en supprimant les microsecondes
+        function formatTime(timeStr) {
+            if (!timeStr) return '--:--:--';
+            return timeStr.split('.')[0]; 
+        }
+
+        // Système de notification Toast
+        function showToast(message, type = "info") {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+
+            let bgColors = type === "warning" ? "bg-amber-600 text-white shadow-amber-500/20" : "bg-slate-900 text-white shadow-slate-900/20";
+            let icon = type === "warning" ? "fa-triangle-exclamation" : "fa-circle-info";
+
+            toast.className = `pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg ${bgColors} text-xs font-semibold transition-all transform translate-y-2 duration-200`;
+            toast.innerHTML = `<i class="fa-solid ${icon} text-sm"></i> <span>${message}</span>`;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', '-translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        function showError(message) {
+            updateStatusBadge('error', 'Erreur API');
+            showToast(message, 'warning');
+        }
+
+        function updateStatusBadge(status, text) {
+            const dot = document.getElementById('api-status-dot');
+            const textEl = document.getElementById('api-status-text');
+
+            if (status === 'success') {
+                dot.className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
+                textEl.className = "text-xs font-medium text-emerald-600";
+            } else if (status === 'error') {
+                dot.className = "w-2 h-2 rounded-full bg-red-500";
+                textEl.className = "text-xs font-medium text-red-600";
+            } else {
+                dot.className = "w-2 h-2 rounded-full bg-amber-500 animate-ping";
+                textEl.className = "text-xs font-medium text-amber-600";
+            }
+            textEl.innerText = text;
+        }
+    </script>
+</body>
+{% endblock body %}

@@ -80,6 +80,8 @@ class SessionActiviteModelView(viewsets.ModelViewSet):
     
     permission_classes = [IsAuthenticated]
 
+
+
 class ApplicationModelView(viewsets.ModelViewSet):
     
     serializer_class = ApplicationSerializer 
@@ -141,6 +143,95 @@ class CheckUsernameApiView(APIView):
             },status=200
         )
 
+#Construction de la view api pour l'administrateur afin pour qu'il voir la liste des sessions par utilisateur
+
+class VoirSessionUtilisateurApiView(APIView):
+    #permission_classes = [IsAdminUser]
+    def get(self,request):
+        user = request.query_params.get('user')
+        if user is None:
+            return Response(
+                {'available':None,
+                'session':user,
+                'message':"Aucun user n'a été spécifié"}
+            ,status=400)
+        utilisateur = User.objects.filter(Q(username__iexact = user)|Q(telephone__iexact=user)|Q(email__iexact=user)).first()
+
+        liste_session = Session_activite.objects.filter(user=utilisateur)
+
+        liste = list(liste_session.values())
+
+        return Response(
+            liste
+        )
+
+
+
+#Construction de la view api pour l'administrateur afin pour qu'il voir la liste des applications par session
+
+class VoirApplicationSessionApiView(APIView):
+    #permission_classes = [IsAdminUser]
+    def get(self,request):
+        session_id = request.query_params.get('session_id')
+        if session_id is None:
+            return Response(
+                {'available':None,
+                'username':session_id,
+                'message':"Aucune session n'a été spécifié"}
+            ,status=400)
+        session = Session_activite.objects.filter(id=session_id).first()
+        liste_application = Application.objects.filter(session = session)
+        liste = list(liste_application.values())
+        return Response(
+            liste
+        )
+
+
+#Construction de la view api pour l'administrateur afin pour qu'il voir la liste des bad_actions par utilisateur
+
+class VoirBadActionUtilisateurPerUserApiView(APIView):
+    #permission_classes = [IsAdminUser]
+    def get(self,request):
+        user = request.query_params.get('user')
+        if user is None:
+            return Response(
+                {'available':None,
+                'session':user,
+                'message':"Aucun user n'a été spécifié"}
+            ,status=400)
+        utilisateur = User.objects.filter(Q(username__iexact = user)|Q(telephone__iexact=user)|Q(email__iexact=user)).first()
+
+        liste_bad_action = Bad_action.objects.filter(application__session__user = utilisateur)
+
+        liste = list(liste_bad_action.values())
+
+        return Response(
+            liste
+        )
+
+
+#Construction de la view api pour l'administrateur afin pour qu'il voir la liste des bad_actions par session
+
+class VoirBadActionUtilisateurPerSessionApiView(APIView):
+    #permission_classes = [IsAdminUser]
+    def get(self,request):
+        session_id = request.query_params.get('session_id')
+        if session_id is None:
+            return Response(
+                {'available':None,
+                'session':session_id,
+                'message':"Aucun session n'a été spécifié"}
+            ,status=400)
+        session = Session_activite.objects.filter(id=session_id).first()
+
+        liste_bad_action = Bad_action.objects.filter(application__session=session)
+
+        liste = list(liste_bad_action.values())
+
+        return Response(
+            liste
+        )
+
 
 class ListInscriptionPendingView(generics.ListAPIView):
     serializer_class = UserSerializer 
@@ -192,13 +283,14 @@ class ValiderInscriptionApiView(APIView):
                     status=status.HTTP_406_NOT_ACCEPTABLE
             )
 
+
 class ThrottledTokenObtainPairView(TokenObtainPairView):
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = 'login'
 
-def dash(request):
+def dashboard(request):
     if request.user.is_superuser:
-        return render(request,'pending.html')
+        return render(request,'dashboard.html')
     else:
         return HttpResponse("Vous n'êtes pas connecté en tant qu'administrateur ")
 
@@ -225,6 +317,14 @@ def extinction(request):
     return render(request,'extinction.html')
 
 
-def users(request):
-    liste = User.objects.all()
-    return render(request,'users.html',{'liste':liste})
+def pending(request:HttpRequest):
+    if request.user.is_superuser:
+        return render(request,'pending.html')
+    else:
+        return  HttpResponse("Vous n'êtes pas connecté en tant qu'administrateur ") 
+
+def session(request:HttpRequest):
+    return render(request,'session.html')
+
+def session_detail(request:HttpRequest):
+    return render(request,'session_detail.html')

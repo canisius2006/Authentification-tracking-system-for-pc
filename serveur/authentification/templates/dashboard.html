@@ -1287,11 +1287,19 @@
                         <span class="text-[11px] text-brand-600 font-semibold flex items-center gap-1">
                             <i class="fa-solid fa-up-right-and-down-left-from-center text-[10px]"></i> Clic pour agrandir
                         </span>
-                        <span class="text-[11px] text-slate-400 font-medium group-hover:text-slate-600 transition-colors">Voir fiche <i class="fa-solid fa-chevron-right text-[10px] ml-0.5"></i></span>
+                        <span onclick="session('${user.username}',event)" title="Ouvrir la fiche complète de l'utilisateur sur une nouvelle page" class="detail inline-flex items-center gap-1.5 text-[11px] font-bold text-brand-600 bg-brand-50 hover:bg-brand-600 hover:text-white px-2.5 py-1.5 rounded-lg border border-brand-100 hover:border-brand-600 cursor-pointer transition-all hover:shadow-sm hover:-translate-y-0.5">Voir fiche <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i></span>
                     </div>
                 `;
                 gridView.appendChild(card);
             });
+        }
+
+         // Cette fonction va nous permettre de pouvoir ouvrir détail avec voir fiche 
+        function session(user,event){  
+            event.stopPropagation()
+            event.preventDefault()
+            const url = new URL(`${API_BASE_URL}/session/?user=${user}`)
+            window.location.href=(url)
         }
 
         // Open User Modal
@@ -1449,6 +1457,7 @@
             showToast("Données démo chargées avec succès", "info");
             applyFilters();
         }
+       
 
         // Helpers & UI Utilities
         function resetFilters() {

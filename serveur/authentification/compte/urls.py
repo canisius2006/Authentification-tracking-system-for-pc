@@ -1,5 +1,5 @@
 from rest_framework.routers import DefaultRouter 
-from .views import UserModelView,RegisterApiView,SessionActiviteModelView,ApplicationModelView,Bad_actionModelView,ValiderInscriptionApiView,ListInscriptionPendingView,ProfilApiView
+from .views import UserModelView,RegisterApiView,SessionActiviteModelView,ApplicationModelView,Bad_actionModelView,ValiderInscriptionApiView,ListInscriptionPendingView,ProfilApiView,VoirSessionUtilisateurApiView,VoirApplicationSessionApiView,VoirBadActionUtilisateurPerUserApiView,VoirBadActionUtilisateurPerSessionApiView
 from django.urls import path,include
 from . import views
 #Définition des views pour nos modelsview set
@@ -17,5 +17,10 @@ urlpatterns = [
     path('liste-pending/',ListInscriptionPendingView.as_view(),name='liste-pending'),
     path('profil/<str:valeur>/',ProfilApiView.as_view(),name='profil'),
     path('profil/',ProfilApiView.as_view()),
+    path('session-par-utilisateur/',VoirSessionUtilisateurApiView.as_view(),name='session-par-utilisateur'),
+    path('application-par-session/',VoirApplicationSessionApiView.as_view(),name='application-par-session'),
+    path('badaction-par-utilisateur/',VoirBadActionUtilisateurPerUserApiView.as_view(),name='badaction-par-utilisateur'),
+    path('badaction-par-session/',VoirBadActionUtilisateurPerSessionApiView.as_view(),name='badaction-par-session'),
+    
     path('',include(router.urls))
 ]
