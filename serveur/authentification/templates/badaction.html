@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% load static %}
-{% block title %}Sessions Utilisateur{% endblock title %}
+{% block title %}Mauvaises Actions Utilisateur{% endblock title %}
 
 {% block head %}
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sessions Utilisateur</title>
+<title>Mauvaises Actions Utilisateur</title>
 <!-- Tailwind CSS CDN -->
 <script src="https://cdn.tailwindcss.com"></script>
 <!-- FontAwesome Icons -->
@@ -21,11 +21,11 @@
                 },
                 colors: {
                     brand: {
-                        50: '#eff6ff',
-                        100: '#dbeafe',
-                        500: '#3b82f6',
-                        600: '#2563eb',
-                        700: '#1d4ed8',
+                        50: '#fef2f2',
+                        100: '#fee2e2',
+                        500: '#ef4444',
+                        600: '#dc2626',
+                        700: '#b91c1c',
                     }
                 }
             }
@@ -44,6 +44,13 @@
         background: #cbd5e1;
         border-radius: 4px;
     }
+    /* Tronquer le texte sur plusieurs lignes */
+    .line-clamp-2 {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;  
+        overflow: hidden;
+    }
 </style>
 {% endblock head %}
 
@@ -60,17 +67,17 @@
                 <!-- Brand Title & Back Button -->
                 <div class="flex items-center space-x-4 w-full sm:w-auto justify-between sm:justify-start">
                     
-                    <button onclick="window.history.back()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors" title="Retour à la liste">
+                    <button onclick="window.history.back()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors" title="Retour">
                         <i class="fa-solid fa-arrow-left"></i>
                     </button>
 
                     <div class="flex items-center space-x-3">
-                        <div class="w-10 h-10 rounded-xl bg-brand-600 flex items-center justify-center text-white shadow-md shadow-brand-500/20 font-bold text-lg">
-                            <i class="fa-solid fa-network-wired"></i>
+                        <div class="w-10 h-10 rounded-xl bg-red-600 flex items-center justify-center text-white shadow-md shadow-red-500/20 font-bold text-lg">
+                            <i class="fa-solid fa-shield-halved"></i>
                         </div>
                         <div>
-                            <h1 class="text-lg font-bold text-slate-900 leading-tight">Historique des Sessions</h1>
-                            <p class="text-xs text-brand-600 font-medium flex items-center gap-1.5">
+                            <h1 class="text-lg font-bold text-slate-900 leading-tight">Historique des Mauvaises Actions</h1>
+                            <p class="text-xs text-red-600 font-medium flex items-center gap-1.5">
                                 <span id="api-status-dot" class="w-2 h-2 rounded-full bg-slate-300"></span>
                                 <span id="api-status-text">Recherche de l'utilisateur...</span>
                             </p>
@@ -82,13 +89,10 @@
                 <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
                     <div class="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 rounded-xl border border-slate-200 items-center gap-2 flex">
                         <i class="fa-solid fa-user-tag text-slate-400"></i>
-                        Cible : <span id="target-user-badge" class="font-mono font-bold text-brand-700">--</span>
+                        Cible : <span id="target-user-badge" class="font-mono font-bold text-red-700">--</span>
                     </div>
-                    <button  onclick="fetchUserBadActions()" class="px-3.5 py-2 text-xs font-semibold text-white bg-slate-800 hover:bg-slate-900 rounded-xl transition-colors flex items-center gap-2 shadow-sm">
-                        <i class="fa-solid fa-rotate-right" id="refresh-icon"></i>
-                        <span class="hidden sm:inline">Voir toutes les mauvaises actions</span>
-                    </button>
-                    <button onclick="fetchUserSessions()" class="px-3.5 py-2 text-xs font-semibold text-white bg-slate-800 hover:bg-slate-900 rounded-xl transition-colors flex items-center gap-2 shadow-sm">
+
+                    <button onclick="fetchBadActions()" class="px-3.5 py-2 text-xs font-semibold text-white bg-slate-800 hover:bg-slate-900 rounded-xl transition-colors flex items-center gap-2 shadow-sm">
                         <i class="fa-solid fa-rotate-right" id="refresh-icon"></i>
                         <span class="hidden sm:inline">Actualiser</span>
                     </button>
@@ -103,32 +107,32 @@
         <!-- Summary Cards -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
-                <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-xl flex-shrink-0">
-                    <i class="fa-solid fa-list-ol"></i>
+                <div class="w-12 h-12 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center text-xl flex-shrink-0">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
                 </div>
                 <div>
-                    <p class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Sessions</p>
+                    <p class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Infractions</p>
                     <h3 id="stat-total" class="text-2xl font-bold text-slate-900 mt-0.5">0</h3>
                 </div>
             </div>
 
             <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
-                <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center text-xl flex-shrink-0">
-                    <i class="fa-solid fa-stopwatch"></i>
+                <div class="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center text-xl flex-shrink-0">
+                    <i class="fa-solid fa-percent"></i>
                 </div>
                 <div>
-                    <p class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Dernière session le</p>
-                    <h3 id="stat-last-date" class="text-sm font-bold text-slate-900 mt-1">--/--/----</h3>
+                    <p class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Confiance Moyenne</p>
+                    <h3 id="stat-avg-conf" class="text-2xl font-bold text-slate-900 mt-0.5">0%</h3>
                 </div>
             </div>
 
             <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
-                <div class="w-12 h-12 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center text-xl flex-shrink-0">
-                    <i class="fa-solid fa-desktop"></i>
+                <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-xl flex-shrink-0">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
                 </div>
                 <div>
-                    <p class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Dernier Poste PC</p>
-                    <h3 id="stat-last-pc" class="text-sm font-bold text-slate-900 mt-1 font-mono">--</h3>
+                    <p class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Dernière action le</p>
+                    <h3 id="stat-last-date" class="text-sm font-bold text-slate-900 mt-1">--/--/----</h3>
                 </div>
             </div>
         </div>
@@ -139,14 +143,14 @@
             <!-- Header Table Controls -->
             <div class="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
                 <h2 class="text-sm font-bold text-slate-800 flex items-center gap-2">
-                    <i class="fa-solid fa-clock-rotate-left text-slate-400"></i> Détail des connexions
+                    <i class="fa-solid fa-list-check text-slate-400"></i> Détail des actions non autorisées
                 </h2>
             </div>
 
             <!-- Loading State -->
             <div id="loading-state" class="flex flex-col items-center justify-center py-20">
-                <div class="w-10 h-10 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin"></div>
-                <p class="text-sm font-semibold text-slate-700 mt-4">Récupération des sessions...</p>
+                <div class="w-10 h-10 border-4 border-red-200 border-t-red-600 rounded-full animate-spin"></div>
+                <p class="text-sm font-semibold text-slate-700 mt-4">Récupération des données...</p>
             </div>
 
             <!-- Error State -->
@@ -156,18 +160,18 @@
                 </div>
                 <h3 class="text-base font-bold text-red-900">Erreur de chargement</h3>
                 <p id="error-message-text" class="text-xs text-red-700 max-w-md mx-auto"></p>
-                <button onclick="fetchUserSessions()" class="mt-4 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition-colors inline-block">
+                <button onclick="fetchBadActions()" class="mt-4 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition-colors inline-block">
                     Réessayer
                 </button>
             </div>
 
             <!-- Empty State -->
             <div id="empty-state" class="hidden py-20 text-center px-4">
-                <div class="w-16 h-16 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto text-2xl mb-4">
-                    <i class="fa-solid fa-ghost"></i>
+                <div class="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto text-2xl mb-4">
+                    <i class="fa-solid fa-check-circle"></i>
                 </div>
-                <h3 class="text-base font-bold text-slate-800">Aucune session trouvée</h3>
-                <p class="text-xs text-slate-500 mt-1">Cet utilisateur ne s'est encore jamais connecté ou les données ont été purgées.</p>
+                <h3 class="text-base font-bold text-slate-800">Aucune infraction détectée</h3>
+                <p class="text-xs text-slate-500 mt-1">Cet utilisateur n'a enregistré aucune action non autorisée.</p>
             </div>
 
             <!-- Data Table -->
@@ -175,15 +179,14 @@
                 <table class="w-full text-left border-collapse">
                     <thead>
                         <tr class="bg-slate-50 border-b border-slate-200 text-[10px] uppercase tracking-wider font-bold text-slate-500">
-                            <th class="px-6 py-3">ID</th>
-                            <th class="px-6 py-3">Jour</th>
-                            <th class="px-6 py-3">Poste (PC)</th>
-                            <th class="px-6 py-3">Heure de début</th>
-                            <th class="px-6 py-3">Heure de fin</th>
-                            <th class="px-6 py-3 text-right">Durée</th>
+                            <th class="px-6 py-3">Date & Heure</th>
+                            <th class="px-6 py-3">Application</th>
+                            <th class="px-6 py-3 w-1/3">Action / Titre</th>
+                            <th class="px-6 py-3 w-1/3">Justification (IA)</th>
+                            <th class="px-6 py-3 text-center">Score de Confiance</th>
                         </tr>
                     </thead>
-                    <tbody id="sessions-tbody" class="divide-y divide-slate-100 text-sm">
+                    <tbody id="actions-tbody" class="divide-y divide-slate-100 text-sm">
                         <!-- Rows injected via JS -->
                     </tbody>
                 </table>
@@ -197,8 +200,8 @@
         // CONFIGURATION & ETAT
         // ===================================================================
         let API_BASE_URL = (localStorage.getItem('api_base_url') || `http://${window.location.host}`).replace(/\/+$/, '');
-        let targetUser = new URLSearchParams(window.location.search).get('user'); // Ex: ?user=amen ou ?user=6
-        let sessionsData = [];
+        let targetUser = new URLSearchParams(window.location.search).get('user');
+        let actionsData = [];
 
         window.onload = function() {
             if (!targetUser) {
@@ -207,7 +210,7 @@
             }
             
             document.getElementById('target-user-badge').innerText = targetUser;
-            fetchUserSessions();
+            fetchBadActions();
         };
 
         function getAuthHeaders() {
@@ -217,17 +220,10 @@
             return headers;
         }
 
-        // Tous les bad_actions d'une personnes 
-        function fetchUserBadActions(){
-            const user = new URLSearchParams(window.location.search).get('user') 
-            const url = new URL(`${API_BASE_URL}/badaction/?user=${user}`)
-            window.location.href=(url)
-        }
-
         // ===================================================================
         // APPEL API
         // ===================================================================
-        async function fetchUserSessions() {
+        async function fetchBadActions() {
             const loadingState = document.getElementById('loading-state');
             const errorState = document.getElementById('error-state');
             const tableContainer = document.getElementById('table-container');
@@ -243,8 +239,7 @@
             updateStatusBadge('loading', 'Connexion à l\'API...');
 
             try {
-                // Construction de l'URL avec le paramètre utilisateur
-                const endpoint = `${API_BASE_URL}/api/session-par-utilisateur/?user=${encodeURIComponent(targetUser)}`;
+                const endpoint = `${API_BASE_URL}/api/badaction-par-utilisateur/?user=${encodeURIComponent(targetUser)}`;
                 
                 const response = await fetch(endpoint, {
                     method: 'GET',
@@ -252,7 +247,7 @@
                 });
 
                 if (response.status === 401) {
-                    throw new Error("Session expirée. Veuillez retourner sur la page précédente pour vous reconnecter.");
+                    throw new Error("Session expirée. Veuillez vous reconnecter.");
                 }
 
                 if (!response.ok) {
@@ -260,11 +255,9 @@
                 }
 
                 const data = await response.json();
-                
-                // Gère le cas où l'API renvoie un tableau directement ou encapsulé
-                sessionsData = Array.isArray(data) ? data : (data.results || data.data || []);
+                actionsData = Array.isArray(data) ? data : (data.results || data.data || []);
 
-                updateStatusBadge('success', 'Connecté');
+                updateStatusBadge('success', 'Données récupérées');
                 renderData();
 
             } catch (error) {
@@ -277,80 +270,115 @@
         }
 
         // ===================================================================
+        // PARSING DES DONNÉES COMPLEXES (String -> JSON/Valeurs)
+        // ===================================================================
+        function extractValueFromPythonDictStr(str, key) {
+            if (!str) return null;
+            // Expression régulière pour extraire la valeur associée à une clé dans un dict Python formaté en string
+            // Gère les valeurs entre guillemets simples, doubles, ou sans guillemets (True/False/Nombres)
+            const regexStr = `'${key}':\\s*(?:"([^"\\\\]*(?:\\\\.[^"\\\\]*)*)"|'([^'\\\\]*(?:\\\\.[^'\\\\]*)*)')`;
+            const regexNum = `'${key}':\\s*([0-9.]+|True|False|None)`;
+
+            let match = str.match(new RegExp(regexStr));
+            if (match) return match[1] !== undefined ? match[1] : match[2];
+            
+            match = str.match(new RegExp(regexNum));
+            if (match) return match[1];
+
+            return null;
+        }
+
+        // ===================================================================
         // RENDU UI
         // ===================================================================
         function renderData() {
             const tableContainer = document.getElementById('table-container');
             const emptyState = document.getElementById('empty-state');
-            const tbody = document.getElementById('sessions-tbody');
+            const tbody = document.getElementById('actions-tbody');
 
-            // Mise à jour des statistiques
-            document.getElementById('stat-total').innerText = sessionsData.length;
+            // Màj Statistiques
+            document.getElementById('stat-total').innerText = actionsData.length;
             
-            if (sessionsData.length > 0) {
-                // Tri des sessions par date et heure de début décroissante (les plus récentes en haut)
-                sessionsData.sort((a, b) => {
-                    const dateA = new Date(`${a.jour}T${a.heure_debut}`);
-                    const dateB = new Date(`${b.jour}T${b.heure_debut}`);
-                    return dateB - dateA;
+            if (actionsData.length > 0) {
+                // Tri par date décroissante
+                actionsData.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+                // Calcul de la confiance moyenne
+                let totalConf = 0;
+                let confCount = 0;
+
+                actionsData.forEach(item => {
+                    let conf = parseFloat(extractValueFromPythonDictStr(item.justification, 'confiance'));
+                    if (!isNaN(conf)) {
+                        totalConf += conf;
+                        confCount++;
+                    }
                 });
 
-                const lastSession = sessionsData[0];
-                document.getElementById('stat-last-date').innerText = formatDateFR(lastSession.jour);
-                document.getElementById('stat-last-pc').innerText = lastSession.pc || '--';
+                const avgConf = confCount > 0 ? (totalConf / confCount) * 100 : 0;
+                document.getElementById('stat-avg-conf').innerText = `${avgConf.toFixed(1)}%`;
+
+                // Dernière date
+                const lastDate = new Date(actionsData[0].created_at);
+                document.getElementById('stat-last-date').innerText = formatDateTimeFR(lastDate);
             } else {
+                document.getElementById('stat-avg-conf').innerText = '0%';
                 document.getElementById('stat-last-date').innerText = '--/--/----';
-                document.getElementById('stat-last-pc').innerText = '--';
             }
 
-            // Remplissage du tableau
             tbody.innerHTML = '';
 
-            if (sessionsData.length === 0) {
+            if (actionsData.length === 0) {
                 emptyState.classList.remove('hidden');
                 return;
             }
 
             tableContainer.classList.remove('hidden');
 
-            sessionsData.forEach(session => {
+            actionsData.forEach(action => {
                 const tr = document.createElement('tr');
-                // Remplacement du survol discret par un fond bleuté visible et une transition fluide
-                tr.className = "hover:bg-brand-50/60 transition-all duration-200 group cursor-pointer";
-                tr.onclick = () => { const url = new URL(`${API_BASE_URL}/session_detail/?id=${session.id}`)
-                    window.location.href = url}
+                tr.className = "hover:bg-red-50/50 transition-colors group";
 
-                const heureDebut = formatTime(session.heure_debut);
-                const heureFin = session.heure_fin ? formatTime(session.heure_fin) : '<span class="text-emerald-500 font-semibold animate-pulse">En cours...</span>';
-                const duree = calculerDuree(session.heure_debut, session.heure_fin);
+                // Extraction des données du string
+                const appName = extractValueFromPythonDictStr(action.text_input, 'application') || 'Inconnu';
+                const confidence = parseFloat(extractValueFromPythonDictStr(action.justification, 'confiance')) || 0;
+                const justificationText = extractValueFromPythonDictStr(action.justification, 'justification') || "Aucune justification détaillée fournie.";
+                
+                // Calcul pourcentage et couleur badge
+                const percent = Math.round(confidence * 100);
+                let badgeColor = "bg-red-100 text-red-700";
+                if(percent < 50) badgeColor = "bg-amber-100 text-amber-700";
+                if(percent < 20) badgeColor = "bg-slate-100 text-slate-700";
+
+                const dateObj = new Date(action.created_at);
 
                 tr.innerHTML = `
                     <td class="px-6 py-4 whitespace-nowrap">
-                        <span class="font-mono text-slate-500 text-xs">#${session.id}</span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="flex items-center gap-2">
-                            <i class="fa-regular fa-calendar text-slate-400 group-hover:text-brand-500 transition-colors"></i>
-                            <span class="font-medium text-slate-700 group-hover:text-brand-700 transition-colors">${formatDateFR(session.jour)}</span>
+                        <div class="flex flex-col">
+                            <span class="font-semibold text-slate-800">${formatDateFR(dateObj)}</span>
+                            <span class="text-xs text-slate-500 font-mono"><i class="fa-regular fa-clock"></i> ${formatTimeOnly(dateObj)}</span>
                         </div>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
-                        <span class="px-2 py-1 bg-slate-100 text-slate-700 font-mono text-xs rounded border border-slate-200 group-hover:bg-white group-hover:border-brand-200 transition-colors">${session.pc}</span>
+                        <span class="px-2.5 py-1 bg-slate-100 text-slate-700 font-mono text-xs rounded-lg border border-slate-200 flex items-center w-max gap-2">
+                            ${getAppIcon(appName)}
+                            ${appName}
+                        </span>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="flex items-center gap-2 text-slate-600 font-mono text-xs">
-                            <i class="fa-solid fa-play text-emerald-500 text-[10px]"></i> ${heureDebut}
+                    <td class="px-6 py-4">
+                        <div class="text-sm font-medium text-slate-800 line-clamp-2" title="${action.titre || ''}">
+                            ${action.titre || 'Action inconnue'}
                         </div>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="flex items-center gap-2 text-slate-600 font-mono text-xs">
-                            <i class="fa-solid fa-stop text-red-400 text-[10px]"></i> ${heureFin}
+                    <td class="px-6 py-4">
+                        <div class="text-xs text-slate-600 bg-slate-50 p-2 rounded border border-slate-100 line-clamp-2" title="${justificationText}">
+                            ${justificationText}
                         </div>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-right flex items-center justify-end gap-3">
-                        <span class="font-semibold text-slate-800 text-xs">${duree}</span>
-                        <!-- Ajout d'un effet de translation (glissement vers la droite) au survol -->
-                        <i class="fa-solid fa-chevron-right text-slate-300 group-hover:text-brand-600 group-hover:translate-x-1 transition-all duration-200"></i>
+                    <td class="px-6 py-4 whitespace-nowrap text-center">
+                        <div class="inline-flex items-center justify-center px-2.5 py-1 rounded-full font-bold text-xs ${badgeColor}">
+                            ${percent}%
+                        </div>
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -372,9 +400,9 @@
             const textEl = document.getElementById('api-status-text');
 
             if (status === 'success') {
-                dot.className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
+                dot.className = "w-2 h-2 rounded-full bg-red-500 animate-pulse";
             } else if (status === 'error') {
-                dot.className = "w-2 h-2 rounded-full bg-red-500";
+                dot.className = "w-2 h-2 rounded-full bg-slate-500";
             } else {
                 dot.className = "w-2 h-2 rounded-full bg-amber-500 animate-ping";
             }
@@ -398,35 +426,36 @@
             }, 3500);
         }
 
-        // Tronque les microsecondes (ex: 09:41:04.222679 -> 09:41:04)
-        function formatTime(timeStr) {
-            if (!timeStr) return '--:--:--';
-            return timeStr.split('.')[0]; 
-        }
-
-        // Formate AAAA-MM-JJ en JJ/MM/AAAA
-        function formatDateFR(dateStr) {
-            if (!dateStr) return 'Date inconnue';
-            const [year, month, day] = dateStr.split('-');
+        function formatDateFR(dateObj) {
+            if (isNaN(dateObj)) return 'Date inconnue';
+            const day = String(dateObj.getDate()).padStart(2, '0');
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const year = dateObj.getFullYear();
             return `${day}/${month}/${year}`;
         }
 
-        // Calcule la différence entre deux heures (format HH:MM:SS)
-        function calculerDuree(debutStr, finStr) {
-            if (!debutStr || !finStr) return '--';
-            
-            // On crée des dates arbitraires le même jour pour calculer la différence
-            const dateDebut = new Date(`1970-01-01T${debutStr}Z`);
-            const dateFin = new Date(`1970-01-01T${finStr}Z`);
-            
-            let diffMs = dateFin - dateDebut;
-            if (diffMs < 0) diffMs += 24 * 60 * 60 * 1000; // Si la session traverse minuit
-            
-            const diffHrs = Math.floor((diffMs % 86400000) / 3600000);
-            const diffMins = Math.round(((diffMs % 86400000) % 3600000) / 60000);
-            
-            if (diffHrs === 0) return `${diffMins} min`;
-            return `${diffHrs}h ${diffMins.toString().padStart(2, '0')}m`;
+        function formatTimeOnly(dateObj) {
+            if (isNaN(dateObj)) return '--:--';
+            const h = String(dateObj.getHours()).padStart(2, '0');
+            const m = String(dateObj.getMinutes()).padStart(2, '0');
+            const s = String(dateObj.getSeconds()).padStart(2, '0');
+            return `${h}:${m}:${s}`;
+        }
+
+        function formatDateTimeFR(dateObj) {
+            return `${formatDateFR(dateObj)} à ${formatTimeOnly(dateObj)}`;
+        }
+
+        // Retourne une icône FontAwesome basée sur le nom de l'exécutable
+        function getAppIcon(appName) {
+            const name = appName.toLowerCase();
+            if (name.includes('firefox')) return '<i class="fa-brands fa-firefox-browser text-orange-500"></i>';
+            if (name.includes('chrome')) return '<i class="fa-brands fa-chrome text-green-500"></i>';
+            if (name.includes('edge')) return '<i class="fa-brands fa-edge text-blue-500"></i>';
+            if (name.includes('discord')) return '<i class="fa-brands fa-discord text-indigo-500"></i>';
+            if (name.includes('spotify')) return '<i class="fa-brands fa-spotify text-green-500"></i>';
+            if (name.includes('code') || name.includes('pycharm')) return '<i class="fa-solid fa-code text-blue-400"></i>';
+            return '<i class="fa-solid fa-window-maximize text-slate-400"></i>';
         }
     </script>
 </body>

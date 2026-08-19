@@ -190,7 +190,7 @@ class VoirApplicationSessionApiView(APIView):
 #Construction de la view api pour l'administrateur afin pour qu'il voir la liste des bad_actions par utilisateur
 
 class VoirBadActionUtilisateurPerUserApiView(APIView):
-    permission_classes = [IsAdminUser]
+    #permission_classes = [IsAdminUser]
     def get(self,request):
         user = request.query_params.get('user')
         if user is None:
@@ -328,3 +328,6 @@ def session(request:HttpRequest):
 
 def session_detail(request:HttpRequest):
     return render(request,'session_detail.html')
+
+def badaction_utilisateur(request:HttpRequest):
+    return render(request,'badaction.html')

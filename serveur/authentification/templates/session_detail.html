@@ -112,6 +112,27 @@
                     </h2>
                     <span id="app-count" class="px-2.5 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded-lg border border-blue-200 shadow-sm">0</span>
                 </div>
+
+                <!-- Barre de recherche & filtre Gauche -->
+                <div class="p-3 border-b border-slate-100 bg-white flex flex-col sm:flex-row gap-2">
+                    <div class="relative flex-1">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 text-xs"></i>
+                        <input type="text" id="apps-search" oninput="filterApps()" placeholder="Rechercher une application ou un titre..."
+                            class="w-full pl-8 pr-8 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
+                        <button onclick="document.getElementById('apps-search').value=''; filterApps();" title="Effacer" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500">
+                            <i class="fa-solid fa-xmark text-xs"></i>
+                        </button>
+                    </div>
+                    <select id="apps-filter-type" onchange="filterApps()"
+                        class="text-xs border border-slate-200 rounded-lg px-2 py-2 bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-400">
+                        <option value="">Toutes les apps</option>
+                    </select>
+                    <select id="apps-sort-order" onchange="filterApps()"
+                        class="text-xs border border-slate-200 rounded-lg px-2 py-2 bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-400">
+                        <option value="id_asc">ID croissant</option>
+                        <option value="id_desc">ID décroissant</option>
+                    </select>
+                </div>
                 
                 <!-- Loader Gauche -->
                 <div id="apps-loading" class="flex-1 flex flex-col items-center justify-center py-20 hidden">
@@ -132,6 +153,28 @@
                         <i class="fa-solid fa-triangle-exclamation text-red-500"></i> Actions Inappropriées
                     </h2>
                     <span id="bad-count" class="px-2.5 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-lg border border-red-200 shadow-sm">0</span>
+                </div>
+
+                <!-- Barre de recherche & filtre Droite -->
+                <div class="p-3 border-b border-red-100 bg-white flex flex-col sm:flex-row gap-2">
+                    <div class="relative flex-1">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 text-xs"></i>
+                        <input type="text" id="bad-search" oninput="filterBadActions()" placeholder="Rechercher un titre ou une justification..."
+                            class="w-full pl-8 pr-8 py-2 text-xs border border-red-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                        <button onclick="document.getElementById('bad-search').value=''; filterBadActions();" title="Effacer" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500">
+                            <i class="fa-solid fa-xmark text-xs"></i>
+                        </button>
+                    </div>
+                    <select id="bad-filter-repeat" onchange="filterBadActions()"
+                        class="text-xs border border-red-200 rounded-lg px-2 py-2 bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-red-400">
+                        <option value="">Toutes</option>
+                        <option value="repeated">Répétées seulement</option>
+                    </select>
+                    <select id="bad-sort-order" onchange="filterBadActions()"
+                        class="text-xs border border-red-200 rounded-lg px-2 py-2 bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-red-400">
+                        <option value="recent">Plus récentes</option>
+                        <option value="old">Plus anciennes</option>
+                    </select>
                 </div>
 
                 <!-- Loader Droite -->
@@ -156,6 +199,10 @@
         let API_BASE_URL = (localStorage.getItem('api_base_url') || `http://${window.location.host}`).replace(/\/+$/, '');
         // On récupère l'ID soit par "session_id", soit par "id" depuis l'URL
         let targetSessionId = new URLSearchParams(window.location.search).get('session_id') || new URLSearchParams(window.location.search).get('id');
+
+        // Listes complètes (non filtrées) conservées en mémoire pour la recherche/les filtres
+        let allApps = [];
+        let allBadActions = [];
 
         window.onload = function() {
             if (!targetSessionId) {
@@ -209,8 +256,14 @@
                 const appsList = Array.isArray(appsData) ? appsData : (appsData.results || appsData.data || []);
                 const badList = Array.isArray(badData) ? badData : (badData.results || badData.data || []);
 
-                renderApps(appsList);
-                renderBadActions(badList);
+                // On enrichit chaque élément (parsing JSON, extraction texte) une seule fois,
+                // puis on garde les listes complètes en mémoire pour pouvoir filtrer sans re-fetch
+                allApps = appsList.map(enrichApp);
+                allBadActions = badList.map(enrichBadAction);
+
+                populateAppFilterOptions(allApps);
+                filterApps();
+                filterBadActions();
                 updateStatusBadge('success', 'Synchronisé');
 
             } catch (error) {
@@ -233,29 +286,28 @@
             document.getElementById('app-count').innerText = apps.length;
             
             if (apps.length === 0) {
-                container.innerHTML = `
-                    <div class="h-full flex flex-col items-center justify-center text-slate-400 p-6 text-center">
-                        <i class="fa-solid fa-ghost text-4xl mb-3 text-slate-300"></i>
-                        <p class="text-sm">Aucune activité applicative enregistrée pour cette session.</p>
-                    </div>`;
+                if (allApps.length > 0) {
+                    // Il y a des données, mais le filtre/recherche ne matche rien
+                    container.innerHTML = `
+                        <div class="h-full flex flex-col items-center justify-center text-slate-400 p-6 text-center">
+                            <i class="fa-solid fa-magnifying-glass text-4xl mb-3 text-slate-300"></i>
+                            <p class="text-sm font-medium text-slate-600">Aucun résultat</p>
+                            <p class="text-xs mt-1">Aucune application ne correspond à votre recherche/filtre.</p>
+                        </div>`;
+                } else {
+                    container.innerHTML = `
+                        <div class="h-full flex flex-col items-center justify-center text-slate-400 p-6 text-center">
+                            <i class="fa-solid fa-ghost text-4xl mb-3 text-slate-300"></i>
+                            <p class="text-sm">Aucune activité applicative enregistrée pour cette session.</p>
+                        </div>`;
+                }
                 return;
             }
 
-            // Tri par ID ou par heure
-            apps.sort((a, b) => a.id - b.id);
-
             let htmlStr = '';
             apps.forEach(app => {
-                let parsedNom = {};
-                try {
-                    // Tente de parser la chaîne de caractères JSON du champ 'nom'
-                    parsedNom = JSON.parse(app.nom);
-                } catch(e) {
-                    console.warn("Impossible de parser le nom de l'app", app.nom);
-                }
-
-                const appName = parsedNom.application || "Application inconnue";
-                const appTitle = parsedNom.titre || app.nom || "--";
+                const appName = app._appName || "Application inconnue";
+                const appTitle = app._appTitle || "--";
                 const iconClass = getIconForApp(appName);
 
                 htmlStr += `
@@ -292,24 +344,35 @@
             document.getElementById('bad-count').innerText = badActions.length;
             
             if (badActions.length === 0) {
-                container.innerHTML = `
-                    <div class="h-full flex flex-col items-center justify-center text-slate-400 p-6 text-center">
-                        <div class="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center text-3xl mb-3">
-                            <i class="fa-solid fa-shield-check"></i>
-                        </div>
-                        <p class="text-sm font-medium text-slate-600">Tout est clean !</p>
-                        <p class="text-xs mt-1">Aucune action inappropriée n'a été détectée.</p>
-                    </div>`;
+                if (allBadActions.length > 0) {
+                    // Il y a des données, mais le filtre/recherche ne matche rien
+                    container.innerHTML = `
+                        <div class="h-full flex flex-col items-center justify-center text-slate-400 p-6 text-center">
+                            <i class="fa-solid fa-magnifying-glass text-4xl mb-3 text-slate-300"></i>
+                            <p class="text-sm font-medium text-slate-600">Aucun résultat</p>
+                            <p class="text-xs mt-1">Aucune action ne correspond à votre recherche/filtre.</p>
+                        </div>`;
+                } else {
+                    container.innerHTML = `
+                        <div class="h-full flex flex-col items-center justify-center text-slate-400 p-6 text-center">
+                            <div class="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center text-3xl mb-3">
+                                <i class="fa-solid fa-shield-check"></i>
+                            </div>
+                            <p class="text-sm font-medium text-slate-600">Tout est clean !</p>
+                            <p class="text-xs mt-1">Aucune action inappropriée n'a été détectée.</p>
+                        </div>`;
+                }
                 return;
             }
 
-            // Tri de la plus récente à la plus ancienne
-            badActions.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
             let htmlStr = '';
             badActions.forEach(bad => {
-                const justificationTxt = extractJustificationText(bad.justification);
-                const time = new Date(bad.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute:'2-digit', second:'2-digit' });
+                const justificationTxt = bad._justificationTxt || "Justification indisponible.";
+                const dateObj = new Date(bad.created_at);
+                const time = dateObj.toLocaleTimeString('fr-FR', { hour: '2-digit', minute:'2-digit', second:'2-digit' });
+                const dateStr = dateObj.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                const windowLabel = bad._windowTitle || bad._appName || '';
+                const confiancePct = (bad._confiance !== null && bad._confiance !== undefined) ? Math.round(bad._confiance * 100) : null;
 
                 htmlStr += `
                     <div class="bg-white p-4 rounded-xl border border-red-200 shadow-sm flex items-start gap-4 hover:bg-red-50/30 transition-colors relative overflow-hidden group">
@@ -322,16 +385,26 @@
                         </div>
                         
                         <div class="flex-1 min-w-0 z-10">
-                            <div class="flex justify-between items-start mb-1.5">
-                                <h4 class="text-sm font-bold text-red-950 pr-3 leading-snug">${bad.titre}</h4>
-                                <span class="text-[10px] font-mono font-bold text-red-600 bg-red-100 px-2 py-1 rounded-md whitespace-nowrap shadow-sm border border-red-200 flex items-center gap-1">
-                                    <i class="fa-regular fa-clock"></i> ${time}
-                                </span>
+                            <div class="flex justify-between items-start mb-1.5 gap-2">
+                                <h4 class="text-sm font-bold text-red-950 pr-1 leading-snug">${bad.titre}</h4>
+                                <div class="flex flex-col items-end gap-1 flex-shrink-0">
+                                    <span class="text-[10px] font-mono font-bold text-red-600 bg-red-100 px-2 py-1 rounded-md whitespace-nowrap shadow-sm border border-red-200 flex items-center gap-1">
+                                        <i class="fa-regular fa-clock"></i> ${time}
+                                    </span>
+                                    <span class="text-[9px] font-mono text-slate-400 whitespace-nowrap">${dateStr} · #${bad.id}</span>
+                                </div>
                             </div>
+
+                            ${windowLabel ? `
+                                <div class="flex items-center gap-2 mb-2 text-[11px] text-slate-600 bg-slate-50 border border-slate-100 rounded-md px-2 py-1.5">
+                                    <i class="${getIconForApp(bad._appName)} flex-shrink-0"></i>
+                                    <span class="truncate" title="${windowLabel.replace(/"/g, '&quot;')}">${windowLabel}</span>
+                                </div>
+                            ` : ''}
                             
                             <p class="text-[12px] text-slate-600 leading-relaxed mb-3">${justificationTxt}</p>
                             
-                            <div class="flex items-center gap-3">
+                            <div class="flex items-center gap-2 flex-wrap">
                                 ${bad.application_id ? `
                                     <span class="inline-flex items-center gap-1.5 text-[10px] font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded-md border border-slate-200">
                                         <i class="fa-solid fa-link text-slate-400"></i> App ID: ${bad.application_id}
@@ -339,7 +412,22 @@
                                 ` : ''}
                                 ${bad.nombre !== undefined ? `
                                     <span class="inline-flex items-center gap-1.5 text-[10px] font-medium text-orange-600 bg-orange-50 px-2 py-1 rounded-md border border-orange-200">
-                                        <i class="fa-solid fa-repeat"></i> Répété ${bad.nombre} fois
+                                        <i class="fa-solid fa-repeat"></i> ${bad.nombre > 0 ? `Répété ${bad.nombre} fois` : 'Première détection'}
+                                    </span>
+                                ` : ''}
+                                ${confiancePct !== null ? `
+                                    <span class="inline-flex items-center gap-1.5 text-[10px] font-medium text-purple-600 bg-purple-50 px-2 py-1 rounded-md border border-purple-200">
+                                        <i class="fa-solid fa-gauge-high"></i> Confiance : ${confiancePct}%
+                                    </span>
+                                ` : ''}
+                                ${bad._methode ? `
+                                    <span class="inline-flex items-center gap-1.5 text-[10px] font-medium text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md border border-indigo-200">
+                                        <i class="fa-solid fa-robot"></i> ${bad._methode.toUpperCase()}
+                                    </span>
+                                ` : ''}
+                                ${bad._mauvais !== null ? `
+                                    <span class="inline-flex items-center gap-1.5 text-[10px] font-medium ${bad._mauvais ? 'text-red-600 bg-red-50 border-red-200' : 'text-emerald-600 bg-emerald-50 border-emerald-200'} px-2 py-1 rounded-md border">
+                                        <i class="fa-solid ${bad._mauvais ? 'fa-flag' : 'fa-check'}"></i> ${bad._mauvais ? 'Classé mauvais' : 'Classé correct'}
                                     </span>
                                 ` : ''}
                             </div>
@@ -348,6 +436,108 @@
                 `;
             });
             container.innerHTML = htmlStr;
+        }
+
+        // ===================================================================
+        // RECHERCHE & FILTRES
+        // ===================================================================
+
+        // Pré-calcule le nom d'application et le titre une seule fois par élément
+        function enrichApp(app) {
+            const parsedNom = parsePyDict(app.nom) || {};
+            app._appName = parsedNom.application || "Application inconnue";
+            app._appTitle = parsedNom.titre || app.nom || "--";
+            return app;
+        }
+
+        // Pré-calcule tous les champs dérivés d'une bad action une seule fois par élément.
+        // ATTENTION : l'API renvoie `text_input` et `justification` sous forme de str(dict) Python
+        // (guillemets simples, True/False, et le type de guillemet qui change selon le contenu :
+        // ex. 'justification': "...d'une vidéo..."). Ce n'est PAS du JSON valide, donc on utilise
+        // parsePyDict() (mini-parseur tolérant) plutôt que JSON.parse ou une regex fragile.
+        function enrichBadAction(bad) {
+            const parsedInput = parsePyDict(bad.text_input) || {};
+            const parsedJust = parsePyDict(bad.justification) || {};
+
+            bad._appName = parsedInput.application || null;
+            bad._windowTitle = parsedInput.titre || null;
+
+            bad._justificationTxt = (typeof parsedJust.justification === 'string' && parsedJust.justification)
+                || (typeof bad.justification === 'string' ? bad.justification : null)
+                || "Justification indisponible.";
+            bad._confiance = (parsedJust.confiance !== undefined && parsedJust.confiance !== null)
+                ? parsedJust.confiance : null;
+            bad._methode = parsedJust.methode || null;
+            bad._mauvais = (parsedJust.mauvais !== undefined) ? parsedJust.mauvais : null;
+
+            return bad;
+        }
+
+        // Remplit dynamiquement le <select> des types d'application à partir des données reçues
+        function populateAppFilterOptions(apps) {
+            const select = document.getElementById('apps-filter-type');
+            const currentValue = select.value;
+
+            const uniqueNames = [...new Set(apps.map(a => a._appName))].sort((a, b) => a.localeCompare(b));
+
+            select.innerHTML = '<option value="">Toutes les apps</option>' +
+                uniqueNames.map(name => `<option value="${name.replace(/"/g, '&quot;')}">${name}</option>`).join('');
+
+            // On restaure la sélection précédente si elle existe toujours
+            if (uniqueNames.includes(currentValue)) {
+                select.value = currentValue;
+            }
+        }
+
+        // Filtre la liste des applications selon le champ de recherche + le type sélectionné
+        function filterApps() {
+            const searchInput = document.getElementById('apps-search');
+            const typeSelect = document.getElementById('apps-filter-type');
+            const sortSelect = document.getElementById('apps-sort-order');
+            if (!searchInput || !typeSelect) return;
+
+            const searchTerm = searchInput.value.toLowerCase().trim();
+            const typeFilter = typeSelect.value;
+            const sortOrder = sortSelect ? sortSelect.value : 'id_asc';
+
+            const filtered = allApps.filter(app => {
+                const matchesSearch = !searchTerm ||
+                    app._appName.toLowerCase().includes(searchTerm) ||
+                    app._appTitle.toLowerCase().includes(searchTerm);
+                const matchesType = !typeFilter || app._appName === typeFilter;
+                return matchesSearch && matchesType;
+            });
+
+            filtered.sort((a, b) => sortOrder === 'id_desc' ? b.id - a.id : a.id - b.id);
+
+            renderApps(filtered);
+        }
+
+        // Filtre la liste des actions inappropriées selon le champ de recherche + l'option "répétées"
+        function filterBadActions() {
+            const searchInput = document.getElementById('bad-search');
+            const repeatSelect = document.getElementById('bad-filter-repeat');
+            const sortSelect = document.getElementById('bad-sort-order');
+            if (!searchInput || !repeatSelect) return;
+
+            const searchTerm = searchInput.value.toLowerCase().trim();
+            const repeatFilter = repeatSelect.value;
+            const sortOrder = sortSelect ? sortSelect.value : 'recent';
+
+            const filtered = allBadActions.filter(bad => {
+                const matchesSearch = !searchTerm ||
+                    (bad.titre || '').toLowerCase().includes(searchTerm) ||
+                    (bad._justificationTxt || '').toLowerCase().includes(searchTerm);
+                const matchesRepeat = repeatFilter !== 'repeated' || (bad.nombre !== undefined && bad.nombre > 1);
+                return matchesSearch && matchesRepeat;
+            });
+
+            filtered.sort((a, b) => {
+                const diff = new Date(b.created_at) - new Date(a.created_at);
+                return sortOrder === 'old' ? -diff : diff;
+            });
+
+            renderBadActions(filtered);
         }
 
         // ===================================================================
@@ -369,15 +559,97 @@
             return 'fa-regular fa-window-maximize text-slate-400';
         }
 
-        // Extrait intelligemment le texte de la justification depuis le faux dictionnaire Python
-        function extractJustificationText(str) {
-            if (!str) return "Justification indisponible.";
-            // Expression régulière qui cherche la clé 'justification' et capture la chaîne correspondante
-            const match = str.match(/['"]justification['"]\s*:\s*(['"])(.*?)\1/);
-            if (match && match[2]) {
-                return match[2];
+        // ===================================================================
+        // PARSEUR "str(dict) Python" -> objet JS
+        // ===================================================================
+        // Le backend sérialise certains champs (text_input, justification) avec
+        // str(dict) au lieu de json.dumps(). Ce n'est pas du JSON valide :
+        // guillemets simples, True/False/None au lieu de true/false/null, et
+        // surtout Python choisit le guillemet (' ou ") au cas par cas selon que
+        // la chaîne contient elle-même une apostrophe. Une regex ne peut pas
+        // gérer ça de façon fiable -> on tokenize proprement caractère par
+        // caractère (mini ast.literal_eval).
+        function parsePyDict(input) {
+            if (input === null || input === undefined) return null;
+            if (typeof input === 'object') return input; // déjà un objet
+            const s = String(input).trim();
+            if (!s) return null;
+
+            // Chemin rapide : si un jour le backend renvoie du vrai JSON, on le prend direct
+            try { return JSON.parse(s); } catch (e) { /* pas du JSON, on continue */ }
+
+            let i = 0;
+            const len = s.length;
+            const skipWs = () => { while (i < len && /\s/.test(s[i])) i++; };
+
+            function parseValue() {
+                skipWs();
+                const c = s[i];
+                if (c === '{') return parseDict();
+                if (c === '[') return parseList();
+                if (c === "'" || c === '"') return parseString();
+                if (s.startsWith('True', i)) { i += 4; return true; }
+                if (s.startsWith('False', i)) { i += 5; return false; }
+                if (s.startsWith('None', i)) { i += 4; return null; }
+                return parseNumber();
             }
-            return str; // Retourne le bloc complet s'il n'arrive pas à extraire
+            function parseString() {
+                const quote = s[i]; i++;
+                let out = '';
+                while (i < len && s[i] !== quote) {
+                    if (s[i] === '\\' && i + 1 < len) { out += s[i + 1]; i += 2; }
+                    else { out += s[i]; i++; }
+                }
+                i++; // guillemet fermant
+                return out;
+            }
+            function parseNumber() {
+                const start = i;
+                while (i < len && /[-+0-9.eE]/.test(s[i])) i++;
+                const num = parseFloat(s.slice(start, i));
+                return Number.isNaN(num) ? null : num;
+            }
+            function parseDict() {
+                i++; // {
+                const obj = {};
+                skipWs();
+                if (s[i] === '}') { i++; return obj; }
+                while (true) {
+                    skipWs();
+                    const key = parseValue();
+                    skipWs();
+                    if (s[i] === ':') i++;
+                    skipWs();
+                    const val = parseValue();
+                    obj[key] = val;
+                    skipWs();
+                    if (s[i] === ',') { i++; continue; }
+                    if (s[i] === '}') { i++; break; }
+                    break; // format inattendu -> on s'arrête proprement
+                }
+                return obj;
+            }
+            function parseList() {
+                i++; // [
+                const arr = [];
+                skipWs();
+                if (s[i] === ']') { i++; return arr; }
+                while (true) {
+                    arr.push(parseValue());
+                    skipWs();
+                    if (s[i] === ',') { i++; skipWs(); continue; }
+                    if (s[i] === ']') { i++; break; }
+                    break;
+                }
+                return arr;
+            }
+
+            try {
+                return parseValue();
+            } catch (e) {
+                console.warn("parsePyDict: échec du parsing", e, s);
+                return null;
+            }
         }
 
         // Formate l'heure en supprimant les microsecondes
