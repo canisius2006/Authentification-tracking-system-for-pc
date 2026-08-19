@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from django.http import HttpResponse,JsonResponse
+from django.http import HttpResponse,JsonResponse,HttpRequest
 from django.contrib.auth import get_user_model 
 from rest_framework import viewsets 
 from rest_framework.permissions import IsAuthenticated,IsAdminUser
@@ -200,7 +200,7 @@ def dash(request):
     if request.user.is_superuser:
         return render(request,'pending.html')
     else:
-        return HttpResponse("Vous n'êtes pas un administrateur imposteur ")
+        return HttpResponse("Vous n'êtes pas connecté en tant qu'administrateur ")
 
 
 
@@ -223,3 +223,8 @@ def guide(request):
 def extinction(request):
     """une vue pour montrer que l'ordinateur va s'éteindre """
     return render(request,'extinction.html')
+
+
+def users(request):
+    liste = User.objects.all()
+    return render(request,'users.html',{'liste':liste})

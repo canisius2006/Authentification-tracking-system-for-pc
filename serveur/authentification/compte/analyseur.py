@@ -142,6 +142,9 @@ PROTOTYPES = {
         "cours ou explication pédagogique sur un sujet académique",
         "consultation ou téléchargement d'un modèle d'intelligence artificielle",
         "gestion de versions de code source",
+        'consultation de son adresse email',
+        "visionnage de vidéo sur les exercices scolaires ou ses difficultés",
+        "recherche d'épreuve sur le web ",
     ],
     "divertissement": [
         "visionnage d'un film ou d'une série pour se divertir",
@@ -225,7 +228,7 @@ def classifier_par_embeddings(
 SEUIL_CONFIANCE = 0.55
 
 SYSTEM_PROMPT = """Tu classes une activité informatique dans un centre éducatif
-(objectif : apprendre, programmer, faire des recherches).
+(objectif : apprendre, programmer, faire des recherches,faire des recherches académiques , faire des recherches sur des épreuves,rechercher des images à caractère utiles).
 
 mauvais=false : programmation, IA, documentation technique, recherche légitime.
 mauvais=true : divertissement (jeux, films, séries, bandes-annonces, clips musicaux,
@@ -339,13 +342,13 @@ def analyser_activite(activite_brute: dict) -> dict:
 
 if __name__ == "__main__":
     cas_de_test = [
-        {'application': 'chrome.exe', 'titre': '(3) Spooder-Man: Brand New Day Trailer - YouTube - Google Chrome'},
-        {'application': 'Code.exe', 'titre': 'test.py - developpement - Visual Studio Code'},
+        
         {'application': 'chrome.exe', 'titre': 'Django pour les débutants : Introduction - YouTube - Google Chrome'},
+        {"application": "chrome.exe", "titre": "louez Dieu à jamais - Brave Search - Google Chrome"}
     ]
     for activite_brute in cas_de_test:
         data = analyser_activite(activite_brute)
         print(json.dumps(data, indent=4, ensure_ascii=False))
         print("---")
 
-print(time.time() - t, 'secondes')
+    print(time.time() - t, 'secondes')

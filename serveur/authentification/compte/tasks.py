@@ -6,13 +6,6 @@ from zoneinfo import ZoneInfo
 from .models import Application, Bad_action
 from .analyseur import analyser_activite
 
-from django.conf import settings
-
-
-print("TIME_ZONE :", settings.TIME_ZONE)
-print("UTC       :", timezone.now())
-print("LOCAL     :", timezone.localtime())
-
 
 @shared_task
 def verifier_activite(application_id, activite):
