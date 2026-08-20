@@ -115,7 +115,7 @@ class ApplicationSerializer(serializers.ModelSerializer):
     def create(self,validated_data):
         application = Application.objects.filter(session=validated_data.get('session'),nom=validated_data.get('nom')).first()
         if application is not None:
-            application.heure_fin = timezone.now().time()
+            application.heure_fin = timezone.localtime().time()
             application.save(update_fields=['heure_fin'])
         else:
             application = Application.objects.create(**validated_data)

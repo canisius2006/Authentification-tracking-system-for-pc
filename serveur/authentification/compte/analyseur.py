@@ -153,6 +153,7 @@ PROTOTYPES = {
         "vidéo humoristique ou clip musical de loisir",
         "discussion informelle sur un réseau social",
         "écoute de musique pour le plaisir",
+        "n'importe quelle type de jeu , même les jeux dans le navigateur et les jeux de réflexions",
     ],
 }
 
@@ -231,7 +232,7 @@ SYSTEM_PROMPT = """Tu classes une activité informatique dans un centre éducati
 (objectif : apprendre, programmer, faire des recherches,faire des recherches académiques , faire des recherches sur des épreuves,rechercher des images à caractère utiles).
 
 mauvais=false : programmation, IA, documentation technique, recherche légitime.
-mauvais=true : divertissement (jeux, films, séries, bandes-annonces, clips musicaux,
+mauvais=true : divertissement (jeux (n'importe quelle type de jeu , même les jeux dans le navigateur et les jeux de réflexions), films, séries, bandes-annonces, clips musicaux,
 réseaux sociaux de loisir) — même si le contenu est parfaitement légal. Le critère
 n'est PAS "légal vs illégal", c'est "lié à l'apprentissage/programmation vs loisir".
 

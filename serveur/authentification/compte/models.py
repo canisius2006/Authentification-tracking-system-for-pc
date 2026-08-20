@@ -42,6 +42,8 @@ class Application(models.Model):
     nom = models.CharField(max_length=255,verbose_name='Nom')
     heure_debut = models.TimeField(verbose_name='Heure de debut',default=heure_actuelle)
     heure_fin = models.TimeField(verbose_name='Heure de fin',default=heure_actuelle)
+    verified = models.BooleanField(verbose_name='Vérifiée',default=False)
+    justification = models.TextField(verbose_name="Justification IA",blank=True,null=True)
 
     def __str__(self):
         return self.nom

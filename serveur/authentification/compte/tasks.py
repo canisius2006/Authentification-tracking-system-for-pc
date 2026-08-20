@@ -5,6 +5,15 @@ from django.utils import timezone
 from zoneinfo import ZoneInfo 
 from .models import Application, Bad_action
 from .analyseur import analyser_activite
+import ast,json 
+
+
+def update(application):
+    session = application.session
+    session.heure_fin = timezone.now().astimezone(ZoneInfo("Africa/Porto-Novo")).time() 
+    application.heure_fin = timezone.now().astimezone(ZoneInfo("Africa/Porto-Novo")).time() 
+    session.save(update_fields=['heure_fin'])
+    application.save(update_fields=['heure_fin'])
 
 
 @shared_task
@@ -18,10 +27,10 @@ def verifier_activite(application_id, activite):
     #print(type(activite))
 
     if isinstance(activite,str):
-        
+        activite = ast.literal_eval(activite)
         return
    
-    
+    print("=============================\n",activite,"\n=============================\n")
     # 1. Récupérer l'application
     try:
         application = Application.objects.get(id=application_id)
@@ -30,38 +39,49 @@ def verifier_activite(application_id, activite):
             "success": False,
             "message": "Application introuvable."
         }
-
+    
+    
+    
     # 2. Analyser l'activité
-    resultat = dict(analyser_activite(activite))
-
+    if not application.verified:
+        resultat = dict(analyser_activite(activite))
+        application.justification = json.dumps(resultat) 
+        application.verified = True 
+        application.save()
   
 
-    # 3. L'activité n'est pas mauvaise => rien à créer
-    if resultat.get("mauvais") is not True:
-        return {
-            "success": True,
-            "bad_action_created": False,
-            "message": "Activité autorisée."
-        }
+        # 3. L'activité n'est pas mauvaise => rien à créer
+        if resultat.get("mauvais") is not True:
+            update(application)
+            return {
+                "success": True,
+                "bad_action_created": False,
+                "message": "Activité autorisée."
+            }
 
     # 4. L'activité est mauvaise => créer Bad_action
     with transaction.atomic():
+        if not application.verified:
+            bad_action, created = Bad_action.objects.get_or_create(
+                application=application,
+                titre=resultat.get("title", ""),
+                text_input=activite,
+                defaults={
+                    "justification": resultat
+                }
+            )
+        elif application.bad_actions.exists():
+            bad_action, created = Bad_action.objects.get_or_create(
+                            application=application)
 
-        bad_action, created = Bad_action.objects.get_or_create(
-            application=application,
-            titre=resultat.get("title", ""),
-            text_input=activite,
-            defaults={
-                "justification": resultat
-            }
-        )
+        print(activite)
 
         # 5. Si une nouvelle Bad_action a été créée, on retire 1 points au score de l'utilisateur
         if created:
             user = application.session.user
             user.score = F('score') - 1
             user.save(update_fields=['score'])
-           
+        
 
         #Ici, si ce n'est pas nouveau , on incrémente le nombre de fois que l'infraction a été commis
         else :
@@ -74,17 +94,13 @@ def verifier_activite(application_id, activite):
                 user = application.session.user
                 user.score = F('score') - 2 #On enlève deux points au lieu d'un seul
                 user.save(update_fields=['score'])
-
+        return {
+                    "success": True,
+                    "bad_action_created": created,
+                    "bad_action_id": bad_action.id
+                }
         # 6. Dans tous les cas (nouvelle action ou doublon), on met à jour les heures de fin
-        session = application.session
-        session.heure_fin = timezone.now().astimezone(ZoneInfo("Africa/Porto-Novo")).time() 
-        application.heure_fin = timezone.now().astimezone(ZoneInfo("Africa/Porto-Novo")).time() 
+  
+    update(application)
 
-        session.save(update_fields=['heure_fin'])
-        application.save(update_fields=['heure_fin'])
-
-    return {
-        "success": True,
-        "bad_action_created": created,
-        "bad_action_id": bad_action.id
-    }
+        
