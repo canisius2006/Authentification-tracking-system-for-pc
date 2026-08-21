@@ -34,7 +34,7 @@
     }
 </script>
 <style>
-    /* Custom Scrollbar for PC List and Table */
+    /* Custom Scrollbar for Table */
     .custom-scrollbar::-webkit-scrollbar {
         width: 6px;
         height: 6px;
@@ -105,7 +105,7 @@
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
             
             <!-- Carte: Total Sessions -->
-            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 h-full">
                 <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-xl flex-shrink-0">
                     <i class="fa-solid fa-list-ol"></i>
                 </div>
@@ -116,7 +116,7 @@
             </div>
 
             <!-- Carte: Utilisateurs Actifs -->
-            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 relative overflow-hidden">
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 relative overflow-hidden h-full">
                 <div class="absolute -right-4 -bottom-4 text-emerald-500/10 text-7xl">
                     <i class="fa-solid fa-users"></i>
                 </div>
@@ -132,15 +132,16 @@
                 </div>
             </div>
 
-            <!-- Carte: PCs en cours d'utilisation -->
-            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center h-[90px]">
-                <div class="flex items-center justify-between mb-1.5">
+            <!-- Carte: PCs en cours d'utilisation (auto-expansible sans scroll) -->
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col h-full min-h-[104px]">
+                <div class="flex items-center justify-between mb-2">
                     <p class="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
                         <i class="fa-solid fa-desktop text-purple-500"></i> PCs en cours
                     </p>
                     <span id="stat-active-pcs-count" class="bg-purple-100 text-purple-700 text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
                 </div>
-                <div id="stat-active-pcs" class="flex flex-wrap gap-1.5 overflow-y-auto custom-scrollbar max-h-12 items-start">
+                <!-- Suppression du overflow-y-auto et max-h pour permettre d'afficher toute la liste -->
+                <div id="stat-active-pcs" class="flex flex-wrap gap-1.5 items-start mt-1">
                     <span class="text-xs text-slate-400 italic">Aucun PC actif</span>
                 </div>
             </div>
@@ -342,12 +343,12 @@
             pcCountEl.innerText = activePCs.size;
             
             if (activePCs.size > 0) {
-                // Création des badges pour les PCs
+                // Création des badges pour les PCs (sans restriction de hauteur)
                 pcListEl.innerHTML = Array.from(activePCs)
-                    .map(pc => `<span class="px-2 py-1 bg-purple-50 text-purple-700 border border-purple-100 rounded-md text-[10px] font-mono font-medium m-0.5 inline-flex items-center gap-1 shadow-sm"><i class="fa-solid fa-laptop text-[9px] text-purple-400"></i>${pc}</span>`)
+                    .map(pc => `<span class="px-2 py-1 bg-purple-50 text-purple-700 border border-purple-100 rounded-md text-[10px] font-mono font-medium inline-flex items-center gap-1 shadow-sm"><i class="fa-solid fa-laptop text-[9px] text-purple-400"></i>${pc}</span>`)
                     .join('');
             } else {
-                pcListEl.innerHTML = `<span class="text-xs text-slate-400 italic flex items-center gap-1"><i class="fa-solid fa-power-off"></i> Aucun PC actuellement utilisé</span>`;
+                pcListEl.innerHTML = `<span class="text-xs text-slate-400 italic flex items-center gap-1 mt-1"><i class="fa-solid fa-power-off"></i> Aucun PC actuellement utilisé</span>`;
             }
 
             tbody.innerHTML = '';
@@ -392,9 +393,9 @@
                     <td class="px-6 py-4 whitespace-nowrap">
                         <div class="flex items-center gap-2">
                             <div class="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-[10px] text-slate-600 font-bold uppercase">
-                                ${username.toString().substring(0,2)}
+                                ${username ? username.toString().substring(0,2) : '?'}
                             </div>
-                            <span class="font-medium text-slate-700">${username}</span>
+                            <span class="font-medium text-slate-700">${username || 'Inconnu'}</span>
                         </div>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">

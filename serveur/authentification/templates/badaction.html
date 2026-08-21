@@ -271,21 +271,86 @@
 
         // ===================================================================
         // PARSING DES DONNÉES COMPLEXES (String -> JSON/Valeurs)
+        // Remplacement de l'ancienne fonction par parsePyDict (beaucoup plus robuste)
         // ===================================================================
-        function extractValueFromPythonDictStr(str, key) {
-            if (!str) return null;
-            // Expression régulière pour extraire la valeur associée à une clé dans un dict Python formaté en string
-            // Gère les valeurs entre guillemets simples, doubles, ou sans guillemets (True/False/Nombres)
-            const regexStr = `'${key}':\\s*(?:"([^"\\\\]*(?:\\\\.[^"\\\\]*)*)"|'([^'\\\\]*(?:\\\\.[^'\\\\]*)*)')`;
-            const regexNum = `'${key}':\\s*([0-9.]+|True|False|None)`;
+        function parsePyDict(input) {
+            if (input === null || input === undefined) return null;
+            if (typeof input === 'object') return input;
+            const s = String(input).trim();
+            if (!s) return null;
 
-            let match = str.match(new RegExp(regexStr));
-            if (match) return match[1] !== undefined ? match[1] : match[2];
-            
-            match = str.match(new RegExp(regexNum));
-            if (match) return match[1];
+            // Tentative JSON pur
+            try { return JSON.parse(s); } catch (e) { }
 
-            return null;
+            // Parseur caractère par caractère (tolérant au format Python)
+            let i = 0;
+            const len = s.length;
+            const skipWs = () => { while (i < len && /\s/.test(s[i])) i++; };
+
+            function parseValue() {
+                skipWs();
+                if (i >= len) return null;
+                const c = s[i];
+                if (c === '{') return parseDict();
+                if (c === '[') return parseList();
+                if (c === "'" || c === '"') return parseString();
+                if (s.startsWith('True', i)) { i += 4; return true; }
+                if (s.startsWith('False', i)) { i += 5; return false; }
+                if (s.startsWith('None', i)) { i += 4; return null; }
+                return parseNumber();
+            }
+            function parseString() {
+                const quote = s[i]; i++;
+                let out = '';
+                while (i < len && s[i] !== quote) {
+                    if (s[i] === '\\' && i + 1 < len) { out += s[i + 1]; i += 2; }
+                    else { out += s[i]; i++; }
+                }
+                i++;
+                return out;
+            }
+            function parseNumber() {
+                const start = i;
+                while (i < len && /[-+0-9.eE]/.test(s[i])) i++;
+                const num = parseFloat(s.slice(start, i));
+                return Number.isNaN(num) ? null : num;
+            }
+            function parseDict() {
+                i++;
+                const obj = {};
+                skipWs();
+                if (i < len && s[i] === '}') { i++; return obj; }
+                while (i < len) {
+                    skipWs();
+                    const key = parseValue();
+                    skipWs();
+                    if (i < len && s[i] === ':') i++;
+                    skipWs();
+                    const val = parseValue();
+                    if (key !== null) obj[key] = val;
+                    skipWs();
+                    if (i < len && s[i] === ',') { i++; continue; }
+                    if (i < len && s[i] === '}') { i++; break; }
+                    break;
+                }
+                return obj;
+            }
+            function parseList() {
+                i++;
+                const arr = [];
+                skipWs();
+                if (i < len && s[i] === ']') { i++; return arr; }
+                while (i < len) {
+                    arr.push(parseValue());
+                    skipWs();
+                    if (i < len && s[i] === ',') { i++; skipWs(); continue; }
+                    if (i < len && s[i] === ']') { i++; break; }
+                    break;
+                }
+                return arr;
+            }
+
+            try { return parseValue(); } catch (e) { return null; }
         }
 
         // ===================================================================
@@ -303,12 +368,13 @@
                 // Tri par date décroissante
                 actionsData.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-                // Calcul de la confiance moyenne
+                // Calcul de la confiance moyenne en utilisant parsePyDict
                 let totalConf = 0;
                 let confCount = 0;
 
                 actionsData.forEach(item => {
-                    let conf = parseFloat(extractValueFromPythonDictStr(item.justification, 'confiance'));
+                    const parsedJust = parsePyDict(item.justification) || {};
+                    let conf = parseFloat(parsedJust.confiance);
                     if (!isNaN(conf)) {
                         totalConf += conf;
                         confCount++;
@@ -339,10 +405,18 @@
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-red-50/50 transition-colors group";
 
-                // Extraction des données du string
-                const appName = extractValueFromPythonDictStr(action.text_input, 'application') || 'Inconnu';
-                const confidence = parseFloat(extractValueFromPythonDictStr(action.justification, 'confiance')) || 0;
-                const justificationText = extractValueFromPythonDictStr(action.justification, 'justification') || "Aucune justification détaillée fournie.";
+                // Extraction robuste des données
+                const parsedInput = parsePyDict(action.text_input) || {};
+                const parsedJust = parsePyDict(action.justification) || {};
+
+                const appName = parsedInput.application || 'Inconnu';
+                const confidence = parseFloat(parsedJust.confiance) || 0;
+                
+                // Fallback propre pour la justification (supporte les chaînes directes ou dict)
+                let justificationText = parsedJust.justification || action.justification;
+                if (typeof justificationText !== 'string') {
+                    justificationText = "Aucune justification détaillée fournie.";
+                }
                 
                 // Calcul pourcentage et couleur badge
                 const percent = Math.round(confidence * 100);
@@ -361,7 +435,7 @@
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
                         <span class="px-2.5 py-1 bg-slate-100 text-slate-700 font-mono text-xs rounded-lg border border-slate-200 flex items-center w-max gap-2">
-                            ${getAppIcon(appName)}
+                            <i class="${getAppIcon(appName)} text-sm"></i>
                             ${appName}
                         </span>
                     </td>
@@ -370,10 +444,11 @@
                             ${action.titre || 'Action inconnue'}
                         </div>
                     </td>
-                    <td class="px-6 py-4">
-                        <div class="text-xs text-slate-600 bg-slate-50 p-2 rounded border border-slate-100 line-clamp-2" title="${justificationText}">
+                    <td class="px-6 py-4 max-w-xs">
+                        <div class="justification-cell text-xs text-slate-600 bg-slate-50 p-2 rounded border border-slate-100 line-clamp-2 cursor-pointer">
                             ${justificationText}
                         </div>
+                        ${justificationText.length > 90 ? `<button type="button" class="toggle-justification-btn mt-1 text-[11px] font-semibold text-red-600 hover:text-red-700 hover:underline">Voir plus</button>` : ''}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-center">
                         <div class="inline-flex items-center justify-center px-2.5 py-1 rounded-full font-bold text-xs ${badgeColor}">
@@ -388,32 +463,93 @@
         // ===================================================================
         // HELPERS (Utilitaires)
         // ===================================================================
+        function formatDateTimeFR(date) {
+            if (!(date instanceof Date) || isNaN(date)) return '--/--/----';
+            return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute:'2-digit' });
+        }
+
+        function formatDateFR(date) {
+            if (!(date instanceof Date) || isNaN(date)) return '--/--/----';
+            return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        }
+
+        function formatTimeOnly(date) {
+            if (!(date instanceof Date) || isNaN(date)) return '--:--:--';
+            return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute:'2-digit', second: '2-digit' });
+        }
+
+        function getAppIcon(appName) {
+            if (!appName) return 'fa-regular fa-window-maximize text-slate-400';
+            const lower = appName.toLowerCase();
+            if (lower.includes('firefox')) return 'fa-brands fa-firefox-browser text-[#FF7139]';
+            if (lower.includes('chrome')) return 'fa-brands fa-chrome text-[#4285F4]';
+            if (lower.includes('edge') || lower.includes('msedge')) return 'fa-brands fa-edge text-[#0078D7]';
+            if (lower.includes('explorer')) return 'fa-regular fa-folder-open text-[#FFC107]';
+            if (lower.includes('winword') || lower.includes('word')) return 'fa-solid fa-file-word text-[#2B579A]';
+            if (lower.includes('excel')) return 'fa-solid fa-file-excel text-[#217346]';
+            if (lower.includes('powerpnt')) return 'fa-solid fa-file-powerpoint text-[#B7472A]';
+            if (lower.includes('code') || lower.includes('vscode')) return 'fa-solid fa-code text-[#007ACC]';
+            return 'fa-regular fa-window-maximize text-slate-400';
+        }
+
         function showError(message) {
-            document.getElementById('error-message-text').innerText = message || "Impossible de récupérer les données.";
-            document.getElementById('error-state').classList.remove('hidden');
-            updateStatusBadge('error', 'Erreur de connexion');
+            const errorState = document.getElementById('error-state');
+            const errorText = document.getElementById('error-message-text');
+            const loadingState = document.getElementById('loading-state');
+            const tableContainer = document.getElementById('table-container');
+
+            if(loadingState) loadingState.classList.add('hidden');
+            if(tableContainer) tableContainer.classList.add('hidden');
+            
+            if(errorState) errorState.classList.remove('hidden');
+            if(errorText) errorText.innerText = message || "Impossible de récupérer les données.";
+            
+            updateStatusBadge('error', 'Erreur API');
             showToast(message, 'warning');
         }
 
         function updateStatusBadge(status, text) {
             const dot = document.getElementById('api-status-dot');
             const textEl = document.getElementById('api-status-text');
+            if(!dot || !textEl) return;
 
             if (status === 'success') {
-                dot.className = "w-2 h-2 rounded-full bg-red-500 animate-pulse";
+                dot.className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
+                textEl.className = "text-xs font-medium text-emerald-600";
             } else if (status === 'error') {
-                dot.className = "w-2 h-2 rounded-full bg-slate-500";
+                dot.className = "w-2 h-2 rounded-full bg-red-500";
+                textEl.className = "text-xs font-medium text-red-600";
             } else {
                 dot.className = "w-2 h-2 rounded-full bg-amber-500 animate-ping";
+                textEl.className = "text-xs font-medium text-amber-600";
             }
             textEl.innerText = text;
         }
 
+        // Délégation d'événement : clic sur le texte ou le bouton "Voir plus/moins"
+        document.addEventListener('click', function(e) {
+            const btn = e.target.closest('.toggle-justification-btn');
+            const cell = e.target.closest('.justification-cell');
+
+            if (btn) {
+                const container = btn.previousElementSibling;
+                const expanded = container.classList.toggle('line-clamp-2') === false;
+                btn.innerText = expanded ? 'Voir moins' : 'Voir plus';
+            } else if (cell) {
+                const collapsed = cell.classList.toggle('line-clamp-2') === false;
+                const nextBtn = cell.nextElementSibling;
+                if (nextBtn && nextBtn.classList.contains('toggle-justification-btn')) {
+                    nextBtn.innerText = collapsed ? 'Voir moins' : 'Voir plus';
+                }
+            }
+        });
+
         function showToast(message, type = "info") {
             const container = document.getElementById('toast-container');
+            if(!container) return;
+            
             const toast = document.createElement('div');
-
-            let bgColors = type === "warning" ? "bg-amber-600 text-white shadow-amber-500/20" : "bg-slate-900 text-white";
+            let bgColors = type === "warning" ? "bg-amber-600 text-white shadow-amber-500/20" : "bg-slate-900 text-white shadow-slate-900/20";
             let icon = type === "warning" ? "fa-triangle-exclamation" : "fa-circle-info";
 
             toast.className = `pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg ${bgColors} text-xs font-semibold transition-all transform translate-y-2 duration-200`;
@@ -424,38 +560,6 @@
                 toast.classList.add('opacity-0', '-translate-y-2');
                 setTimeout(() => toast.remove(), 300);
             }, 3500);
-        }
-
-        function formatDateFR(dateObj) {
-            if (isNaN(dateObj)) return 'Date inconnue';
-            const day = String(dateObj.getDate()).padStart(2, '0');
-            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-            const year = dateObj.getFullYear();
-            return `${day}/${month}/${year}`;
-        }
-
-        function formatTimeOnly(dateObj) {
-            if (isNaN(dateObj)) return '--:--';
-            const h = String(dateObj.getHours()).padStart(2, '0');
-            const m = String(dateObj.getMinutes()).padStart(2, '0');
-            const s = String(dateObj.getSeconds()).padStart(2, '0');
-            return `${h}:${m}:${s}`;
-        }
-
-        function formatDateTimeFR(dateObj) {
-            return `${formatDateFR(dateObj)} à ${formatTimeOnly(dateObj)}`;
-        }
-
-        // Retourne une icône FontAwesome basée sur le nom de l'exécutable
-        function getAppIcon(appName) {
-            const name = appName.toLowerCase();
-            if (name.includes('firefox')) return '<i class="fa-brands fa-firefox-browser text-orange-500"></i>';
-            if (name.includes('chrome')) return '<i class="fa-brands fa-chrome text-green-500"></i>';
-            if (name.includes('edge')) return '<i class="fa-brands fa-edge text-blue-500"></i>';
-            if (name.includes('discord')) return '<i class="fa-brands fa-discord text-indigo-500"></i>';
-            if (name.includes('spotify')) return '<i class="fa-brands fa-spotify text-green-500"></i>';
-            if (name.includes('code') || name.includes('pycharm')) return '<i class="fa-solid fa-code text-blue-400"></i>';
-            return '<i class="fa-solid fa-window-maximize text-slate-400"></i>';
         }
     </script>
 </body>

@@ -246,7 +246,7 @@
                 ]);
 
                 if (!appsResponse.ok || !badResponse.ok) {
-                    throw new Error("Erreur lors de la récupération des détails de la session.");
+                    throw new Error("Erreur lors de la récupération des détails de la session. Repartez sur la dashboard");
                 }
 
                 const appsData = await appsResponse.json();
@@ -256,8 +256,7 @@
                 const appsList = Array.isArray(appsData) ? appsData : (appsData.results || appsData.data || []);
                 const badList = Array.isArray(badData) ? badData : (badData.results || badData.data || []);
 
-                // On enrichit chaque élément (parsing JSON, extraction texte) une seule fois,
-                // puis on garde les listes complètes en mémoire pour pouvoir filtrer sans re-fetch
+                // On enrichit chaque élément (parsing JSON, extraction texte) une seule fois
                 allApps = appsList.map(enrichApp);
                 allBadActions = badList.map(enrichBadAction);
 
@@ -287,7 +286,6 @@
             
             if (apps.length === 0) {
                 if (allApps.length > 0) {
-                    // Il y a des données, mais le filtre/recherche ne matche rien
                     container.innerHTML = `
                         <div class="h-full flex flex-col items-center justify-center text-slate-400 p-6 text-center">
                             <i class="fa-solid fa-magnifying-glass text-4xl mb-3 text-slate-300"></i>
@@ -309,6 +307,11 @@
                 const appName = app._appName || "Application inconnue";
                 const appTitle = app._appTitle || "--";
                 const iconClass = getIconForApp(appName);
+                
+                // Badge de statut (Vérifié IA ou En attente)
+                const verifiedBadge = app.verified
+                    ? `<span class="inline-flex items-center gap-1 text-[10px] uppercase font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded border border-emerald-200"><i class="fa-solid fa-check-double"></i> Analysé par l'IA</span>`
+                    : `<span class="inline-flex items-center gap-1 text-[10px] uppercase font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200"><i class="fa-solid fa-hourglass-half"></i> En attente d'analyse IA</span>`;
 
                 htmlStr += `
                     <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-start gap-3.5 hover:border-blue-300 hover:shadow-md transition-all group">
@@ -316,12 +319,14 @@
                             <i class="${iconClass}"></i>
                         </div>
                         <div class="flex-1 min-w-0">
-                            <h4 class="text-[13px] font-semibold text-slate-800 leading-tight mb-1" title="${appTitle.replace(/"/g, '&quot;')}">
+                            <h4 class="text-[13px] font-semibold text-slate-800 leading-tight mb-2 break-words whitespace-normal">
                                 ${appTitle}
                             </h4>
-                            <div class="flex items-center gap-2 mb-2">
-                                <span class="text-[10px] uppercase tracking-wider font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">${appName}</span>
-                                <span class="text-[10px] text-slate-400">ID: ${app.id}</span>
+                            
+                            <div class="flex flex-wrap items-center gap-2 mb-2">
+                                <span class="text-[10px] uppercase tracking-wider font-bold text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded">${appName}</span>
+                                <span class="text-[10px] font-mono text-slate-400">ID: ${app.id}</span>
+                                ${verifiedBadge}
                             </div>
                             
                             <div class="flex items-center gap-2 text-[11px] font-mono font-medium text-slate-500 bg-slate-50 w-fit px-2 py-1 rounded-md border border-slate-100">
@@ -329,6 +334,28 @@
                                 <span class="text-slate-300">|</span>
                                 <span class="flex items-center gap-1.5"><div class="w-1.5 h-1.5 rounded-full bg-red-400"></div> ${formatTime(app.heure_fin)}</span>
                             </div>
+
+                            ${app._justificationTxt ? `
+                            <div class="mt-3 p-2.5 bg-blue-50/50 border border-blue-100 rounded-lg text-[12px] text-slate-700 break-words whitespace-normal leading-relaxed">
+                                <strong class="text-blue-800 text-[11px] uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-robot text-blue-500"></i> Justification IA :
+                                </strong>
+                                <p class="mb-1">${app._justificationTxt}</p>
+                                
+                                <div class="flex items-center gap-2 flex-wrap mt-2">
+                                    ${app._confiance !== null ? `
+                                        <span class="inline-flex items-center gap-1 text-[9px] font-medium text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200">
+                                            <i class="fa-solid fa-gauge-high"></i> Confiance : ${Math.round(app._confiance * 100)}%
+                                        </span>
+                                    ` : ''}
+                                    ${app._methode ? `
+                                        <span class="inline-flex items-center gap-1 text-[9px] font-medium text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200">
+                                            <i class="fa-solid fa-microchip"></i> ${app._methode.toUpperCase()}
+                                        </span>
+                                    ` : ''}
+                                </div>
+                            </div>
+                            ` : ''}
                         </div>
                     </div>
                 `;
@@ -345,7 +372,6 @@
             
             if (badActions.length === 0) {
                 if (allBadActions.length > 0) {
-                    // Il y a des données, mais le filtre/recherche ne matche rien
                     container.innerHTML = `
                         <div class="h-full flex flex-col items-center justify-center text-slate-400 p-6 text-center">
                             <i class="fa-solid fa-magnifying-glass text-4xl mb-3 text-slate-300"></i>
@@ -385,8 +411,8 @@
                         </div>
                         
                         <div class="flex-1 min-w-0 z-10">
-                            <div class="flex justify-between items-start mb-1.5 gap-2">
-                                <h4 class="text-sm font-bold text-red-950 pr-1 leading-snug">${bad.titre}</h4>
+                            <div class="flex justify-between items-start mb-2 gap-2">
+                                <h4 class="text-sm font-bold text-red-950 pr-1 leading-snug break-words whitespace-normal">${bad.titre}</h4>
                                 <div class="flex flex-col items-end gap-1 flex-shrink-0">
                                     <span class="text-[10px] font-mono font-bold text-red-600 bg-red-100 px-2 py-1 rounded-md whitespace-nowrap shadow-sm border border-red-200 flex items-center gap-1">
                                         <i class="fa-regular fa-clock"></i> ${time}
@@ -396,38 +422,43 @@
                             </div>
 
                             ${windowLabel ? `
-                                <div class="flex items-center gap-2 mb-2 text-[11px] text-slate-600 bg-slate-50 border border-slate-100 rounded-md px-2 py-1.5">
-                                    <i class="${getIconForApp(bad._appName)} flex-shrink-0"></i>
-                                    <span class="truncate" title="${windowLabel.replace(/"/g, '&quot;')}">${windowLabel}</span>
+                                <div class="flex items-start gap-2 mb-3 text-[11px] text-slate-700 bg-slate-50 border border-slate-200 rounded-md p-2">
+                                    <i class="${getIconForApp(bad._appName)} flex-shrink-0 mt-0.5"></i>
+                                    <span class="break-words whitespace-normal leading-relaxed">${windowLabel}</span>
                                 </div>
                             ` : ''}
                             
-                            <p class="text-[12px] text-slate-600 leading-relaxed mb-3">${justificationTxt}</p>
+                            <div class="text-[12px] text-slate-700 leading-relaxed mb-4 break-words whitespace-normal p-2.5 bg-red-50/50 rounded-md border border-red-100">
+                                <strong class="text-red-900 text-[11px] uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-robot text-red-500"></i> Justification IA :
+                                </strong>
+                                ${justificationTxt}
+                            </div>
                             
-                            <div class="flex items-center gap-2 flex-wrap">
+                            <div class="flex items-center gap-2 flex-wrap mt-2">
                                 ${bad.application_id ? `
-                                    <span class="inline-flex items-center gap-1.5 text-[10px] font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded-md border border-slate-200">
+                                    <span class="inline-flex items-center gap-1.5 text-[10px] font-medium text-slate-600 bg-slate-100 px-2 py-1 rounded-md border border-slate-200">
                                         <i class="fa-solid fa-link text-slate-400"></i> App ID: ${bad.application_id}
                                     </span>
                                 ` : ''}
                                 ${bad.nombre !== undefined ? `
-                                    <span class="inline-flex items-center gap-1.5 text-[10px] font-medium text-orange-600 bg-orange-50 px-2 py-1 rounded-md border border-orange-200">
+                                    <span class="inline-flex items-center gap-1.5 text-[10px] font-medium text-orange-700 bg-orange-50 px-2 py-1 rounded-md border border-orange-200">
                                         <i class="fa-solid fa-repeat"></i> ${bad.nombre > 0 ? `Répété ${bad.nombre} fois` : 'Première détection'}
                                     </span>
                                 ` : ''}
                                 ${confiancePct !== null ? `
-                                    <span class="inline-flex items-center gap-1.5 text-[10px] font-medium text-purple-600 bg-purple-50 px-2 py-1 rounded-md border border-purple-200">
+                                    <span class="inline-flex items-center gap-1.5 text-[10px] font-medium text-purple-700 bg-purple-50 px-2 py-1 rounded-md border border-purple-200">
                                         <i class="fa-solid fa-gauge-high"></i> Confiance : ${confiancePct}%
                                     </span>
                                 ` : ''}
                                 ${bad._methode ? `
-                                    <span class="inline-flex items-center gap-1.5 text-[10px] font-medium text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md border border-indigo-200">
-                                        <i class="fa-solid fa-robot"></i> ${bad._methode.toUpperCase()}
+                                    <span class="inline-flex items-center gap-1.5 text-[10px] font-medium text-indigo-700 bg-indigo-50 px-2 py-1 rounded-md border border-indigo-200">
+                                        <i class="fa-solid fa-microchip"></i> ${bad._methode.toUpperCase()}
                                     </span>
                                 ` : ''}
                                 ${bad._mauvais !== null ? `
-                                    <span class="inline-flex items-center gap-1.5 text-[10px] font-medium ${bad._mauvais ? 'text-red-600 bg-red-50 border-red-200' : 'text-emerald-600 bg-emerald-50 border-emerald-200'} px-2 py-1 rounded-md border">
-                                        <i class="fa-solid ${bad._mauvais ? 'fa-flag' : 'fa-check'}"></i> ${bad._mauvais ? 'Classé mauvais' : 'Classé correct'}
+                                    <span class="inline-flex items-center gap-1.5 text-[10px] font-medium ${bad._mauvais ? 'text-red-700 bg-red-50 border-red-200' : 'text-emerald-700 bg-emerald-50 border-emerald-200'} px-2 py-1 rounded-md border">
+                                        <i class="fa-solid ${bad._mauvais ? 'fa-flag' : 'fa-check-circle'}"></i> ${bad._mauvais ? 'Classé mauvais' : 'Classé correct'}
                                     </span>
                                 ` : ''}
                             </div>
@@ -442,19 +473,26 @@
         // RECHERCHE & FILTRES
         // ===================================================================
 
-        // Pré-calcule le nom d'application et le titre une seule fois par élément
         function enrichApp(app) {
             const parsedNom = parsePyDict(app.nom) || {};
             app._appName = parsedNom.application || "Application inconnue";
             app._appTitle = parsedNom.titre || app.nom || "--";
+            
+            // Nouveau traitement : parser la justification de l'application
+            const parsedJust = parsePyDict(app.justification) || {};
+            
+            // Extraction du texte de justification propre
+            app._justificationTxt = (typeof parsedJust.justification === 'string' && parsedJust.justification)
+                || (typeof app.justification === 'string' ? app.justification : null);
+                
+            // Extraction des métadonnées pour enrichir l'affichage
+            app._confiance = (parsedJust.confiance !== undefined && parsedJust.confiance !== null) ? parsedJust.confiance : null;
+            app._methode = parsedJust.methode || null;
+            app._mauvais = (parsedJust.mauvais !== undefined) ? parsedJust.mauvais : null;
+
             return app;
         }
 
-        // Pré-calcule tous les champs dérivés d'une bad action une seule fois par élément.
-        // ATTENTION : l'API renvoie `text_input` et `justification` sous forme de str(dict) Python
-        // (guillemets simples, True/False, et le type de guillemet qui change selon le contenu :
-        // ex. 'justification': "...d'une vidéo..."). Ce n'est PAS du JSON valide, donc on utilise
-        // parsePyDict() (mini-parseur tolérant) plutôt que JSON.parse ou une regex fragile.
         function enrichBadAction(bad) {
             const parsedInput = parsePyDict(bad.text_input) || {};
             const parsedJust = parsePyDict(bad.justification) || {};
@@ -473,7 +511,6 @@
             return bad;
         }
 
-        // Remplit dynamiquement le <select> des types d'application à partir des données reçues
         function populateAppFilterOptions(apps) {
             const select = document.getElementById('apps-filter-type');
             const currentValue = select.value;
@@ -483,13 +520,11 @@
             select.innerHTML = '<option value="">Toutes les apps</option>' +
                 uniqueNames.map(name => `<option value="${name.replace(/"/g, '&quot;')}">${name}</option>`).join('');
 
-            // On restaure la sélection précédente si elle existe toujours
             if (uniqueNames.includes(currentValue)) {
                 select.value = currentValue;
             }
         }
 
-        // Filtre la liste des applications selon le champ de recherche + le type sélectionné
         function filterApps() {
             const searchInput = document.getElementById('apps-search');
             const typeSelect = document.getElementById('apps-filter-type');
@@ -503,7 +538,8 @@
             const filtered = allApps.filter(app => {
                 const matchesSearch = !searchTerm ||
                     app._appName.toLowerCase().includes(searchTerm) ||
-                    app._appTitle.toLowerCase().includes(searchTerm);
+                    app._appTitle.toLowerCase().includes(searchTerm) ||
+                    (app._justificationTxt || '').toLowerCase().includes(searchTerm);
                 const matchesType = !typeFilter || app._appName === typeFilter;
                 return matchesSearch && matchesType;
             });
@@ -513,7 +549,6 @@
             renderApps(filtered);
         }
 
-        // Filtre la liste des actions inappropriées selon le champ de recherche + l'option "répétées"
         function filterBadActions() {
             const searchInput = document.getElementById('bad-search');
             const repeatSelect = document.getElementById('bad-filter-repeat');
@@ -527,7 +562,8 @@
             const filtered = allBadActions.filter(bad => {
                 const matchesSearch = !searchTerm ||
                     (bad.titre || '').toLowerCase().includes(searchTerm) ||
-                    (bad._justificationTxt || '').toLowerCase().includes(searchTerm);
+                    (bad._justificationTxt || '').toLowerCase().includes(searchTerm) ||
+                    (bad._windowTitle || '').toLowerCase().includes(searchTerm);
                 const matchesRepeat = repeatFilter !== 'repeated' || (bad.nombre !== undefined && bad.nombre > 1);
                 return matchesSearch && matchesRepeat;
             });
@@ -544,7 +580,6 @@
         // UTILITAIRES & HELPERS
         // ===================================================================
         
-        // Déduit un icône FontAwesome en fonction du nom du .exe
         function getIconForApp(appName) {
             if (!appName) return 'fa-regular fa-window-maximize text-slate-400';
             const lower = appName.toLowerCase();
@@ -559,24 +594,14 @@
             return 'fa-regular fa-window-maximize text-slate-400';
         }
 
-        // ===================================================================
-        // PARSEUR "str(dict) Python" -> objet JS
-        // ===================================================================
-        // Le backend sérialise certains champs (text_input, justification) avec
-        // str(dict) au lieu de json.dumps(). Ce n'est pas du JSON valide :
-        // guillemets simples, True/False/None au lieu de true/false/null, et
-        // surtout Python choisit le guillemet (' ou ") au cas par cas selon que
-        // la chaîne contient elle-même une apostrophe. Une regex ne peut pas
-        // gérer ça de façon fiable -> on tokenize proprement caractère par
-        // caractère (mini ast.literal_eval).
+        // Parseur tolérant pour le retour textuel de python (str(dict))
         function parsePyDict(input) {
             if (input === null || input === undefined) return null;
-            if (typeof input === 'object') return input; // déjà un objet
+            if (typeof input === 'object') return input;
             const s = String(input).trim();
             if (!s) return null;
 
-            // Chemin rapide : si un jour le backend renvoie du vrai JSON, on le prend direct
-            try { return JSON.parse(s); } catch (e) { /* pas du JSON, on continue */ }
+            try { return JSON.parse(s); } catch (e) { }
 
             let i = 0;
             const len = s.length;
@@ -600,7 +625,7 @@
                     if (s[i] === '\\' && i + 1 < len) { out += s[i + 1]; i += 2; }
                     else { out += s[i]; i++; }
                 }
-                i++; // guillemet fermant
+                i++;
                 return out;
             }
             function parseNumber() {
@@ -610,7 +635,7 @@
                 return Number.isNaN(num) ? null : num;
             }
             function parseDict() {
-                i++; // {
+                i++;
                 const obj = {};
                 skipWs();
                 if (s[i] === '}') { i++; return obj; }
@@ -625,12 +650,12 @@
                     skipWs();
                     if (s[i] === ',') { i++; continue; }
                     if (s[i] === '}') { i++; break; }
-                    break; // format inattendu -> on s'arrête proprement
+                    break;
                 }
                 return obj;
             }
             function parseList() {
-                i++; // [
+                i++;
                 const arr = [];
                 skipWs();
                 if (s[i] === ']') { i++; return arr; }
@@ -644,21 +669,14 @@
                 return arr;
             }
 
-            try {
-                return parseValue();
-            } catch (e) {
-                console.warn("parsePyDict: échec du parsing", e, s);
-                return null;
-            }
+            try { return parseValue(); } catch (e) { return null; }
         }
 
-        // Formate l'heure en supprimant les microsecondes
         function formatTime(timeStr) {
             if (!timeStr) return '--:--:--';
             return timeStr.split('.')[0]; 
         }
 
-        // Système de notification Toast
         function showToast(message, type = "info") {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
