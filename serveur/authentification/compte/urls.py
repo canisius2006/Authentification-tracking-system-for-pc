@@ -1,5 +1,5 @@
 from rest_framework.routers import DefaultRouter 
-from .views import UserModelView,RegisterApiView,SessionActiviteModelView,ApplicationModelView,Bad_actionModelView,ValiderInscriptionApiView,ListInscriptionPendingView,ProfilApiView,VoirSessionUtilisateurApiView,VoirApplicationSessionApiView,VoirBadActionUtilisateurPerUserApiView,VoirBadActionUtilisateurPerSessionApiView
+from .views import UserModelView,RegisterApiView,SessionActiviteModelView,ApplicationModelView,Bad_actionModelView,ValiderInscriptionApiView,ListInscriptionPendingView,ProfilApiView,VoirSessionUtilisateurApiView,VoirApplicationSessionApiView,VoirBadActionUtilisateurPerUserApiView,VoirBadActionUtilisateurPerSessionApiView,VoirSessionActuelleApiView
 from django.urls import path,include
 from . import views
 #Définition des views pour nos modelsview set
@@ -21,6 +21,7 @@ urlpatterns = [
     path('application-par-session/',VoirApplicationSessionApiView.as_view(),name='application-par-session'),
     path('badaction-par-utilisateur/',VoirBadActionUtilisateurPerUserApiView.as_view(),name='badaction-par-utilisateur'),
     path('badaction-par-session/',VoirBadActionUtilisateurPerSessionApiView.as_view(),name='badaction-par-session'),
+    path('sessions/',VoirSessionActuelleApiView.as_view(),name='sessions'),
     
     path('',include(router.urls))
 ]

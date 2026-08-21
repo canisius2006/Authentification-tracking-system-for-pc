@@ -54,7 +54,8 @@ urlpatterns = [
     path('dashboard/',views.dashboard,name='dashboard'),
     path('session/',views.session,name='session'),
     path('session_detail/',views.session_detail,name='session_detail'),
-    path('badaction/',views.badaction_utilisateur,name='badaction')
+    path('badaction/',views.badaction_utilisateur,name='badaction'),
+    path('toute_session/',views.toute_session,name='toute_session')
 ]
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 if not settings.DEBUG:

@@ -20,7 +20,9 @@ from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken 
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.throttling import ScopedRateThrottle
-
+from datetime import datetime 
+import time 
+from django.utils import timezone 
 from .tasks import verifier_activite
 from dotenv import load_dotenv 
 import os,socket
@@ -166,6 +168,44 @@ class VoirSessionUtilisateurApiView(APIView):
         )
 
 
+#Pour voir les sessions actuelles avec les utilisateurs et le pc pris
+
+class VoirSessionActuelleApiView(APIView):
+    #permission_classes = [IsAdminUser]
+    def get(self,request):
+        maintenant = timezone.localtime()
+        liste_session = Session_activite.objects.filter(jour=maintenant.date()).order_by('-heure_fin')
+        liste = list(liste_session.values(
+            'id',
+            'user_id',
+            'user__username',
+            'jour',
+            'pc',
+            'heure_debut',
+            'heure_fin',
+        ))
+        return Response(
+            liste
+        )
+
+#Voir la liste des alertes globales en cours 
+class VoirBadactionActuelleApiView(APIView):
+    #permission_classes = [IsAdminUser]
+    def get(self,request):
+        maintenant = timezone.localtime()
+        liste_session = Session_activite.objects.filter(jour=maintenant.date()).order_by('-heure_fin')
+        liste = list(liste_session.values(
+            'id',
+            'user_id',
+            'user__username',
+            'jour',
+            'pc',
+            'heure_debut',
+            'heure_fin',
+        ))
+        return Response(
+            liste
+        )
 
 #Construction de la view api pour l'administrateur afin pour qu'il voir la liste des applications par session
 
@@ -325,6 +365,9 @@ def pending(request:HttpRequest):
 
 def session(request:HttpRequest):
     return render(request,'session.html')
+
+def toute_session(request:HttpRequest):
+    return render(request,'toute_session.html')
 
 def session_detail(request:HttpRequest):
     return render(request,'session_detail.html')

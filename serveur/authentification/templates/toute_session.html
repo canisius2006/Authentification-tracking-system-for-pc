@@ -1,0 +1,504 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Supervision des Sessions{% endblock title %}
+
+{% block head %}
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Supervision des Sessions</title>
+<!-- Tailwind CSS CDN -->
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- FontAwesome Icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<!-- Inter Font -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                fontFamily: {
+                    sans: ['Inter', 'sans-serif'],
+                },
+                colors: {
+                    brand: {
+                        50: '#eff6ff',
+                        100: '#dbeafe',
+                        500: '#3b82f6',
+                        600: '#2563eb',
+                        700: '#1d4ed8',
+                    }
+                }
+            }
+        }
+    }
+</script>
+<style>
+    /* Custom Scrollbar for PC List and Table */
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: #f1f5f9;
+        border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+    }
+</style>
+{% endblock head %}
+
+{% block body %}
+<body class="h-full font-sans text-slate-800 antialiased bg-slate-50 flex flex-col min-h-screen">
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2 pointer-events-none max-w-sm w-full"></div>
+
+    <!-- Header Navbar -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col sm:flex-row items-center justify-between py-3 sm:py-0 sm:h-16 gap-3 sm:gap-0">
+                <!-- Brand Title -->
+                <div class="flex items-center space-x-4 w-full sm:w-auto justify-between sm:justify-start">
+                    <button onclick="window.history.back()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors" title="Retour">
+                        <i class="fa-solid fa-arrow-left"></i>
+                    </button>
+
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-xl bg-brand-600 flex items-center justify-center text-white shadow-md shadow-brand-500/20 font-bold text-lg">
+                            <i class="fa-solid fa-satellite-dish"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-lg font-bold text-slate-900 leading-tight">Supervision des Sessions</h1>
+                            <p class="text-xs text-brand-600 font-medium flex items-center gap-1.5">
+                                <span id="api-status-dot" class="w-2 h-2 rounded-full bg-slate-300"></span>
+                                <span id="api-status-text">Synchronisation globale...</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Action Header -->
+                <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
+                    <button onclick="window.location.href='/badaction/'" class="px-3.5 py-2 text-xs font-semibold text-white bg-slate-800 hover:bg-slate-900 rounded-xl transition-colors flex items-center gap-2 shadow-sm">
+                        <i class="fa-solid fa-shield-halved"></i>
+                        <span class="hidden sm:inline">Alertes globales</span>
+                    </button>
+                    <button onclick="fetchSessions()" class="px-3.5 py-2 text-xs font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-xl transition-colors flex items-center gap-2 shadow-sm">
+                        <i class="fa-solid fa-rotate-right" id="refresh-icon"></i>
+                        <span class="hidden sm:inline">Actualiser</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            
+            <!-- Carte: Total Sessions -->
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+                <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-xl flex-shrink-0">
+                    <i class="fa-solid fa-list-ol"></i>
+                </div>
+                <div>
+                    <p class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Sessions (Jour)</p>
+                    <h3 id="stat-total" class="text-2xl font-bold text-slate-900 mt-0.5">0</h3>
+                </div>
+            </div>
+
+            <!-- Carte: Utilisateurs Actifs -->
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 relative overflow-hidden">
+                <div class="absolute -right-4 -bottom-4 text-emerald-500/10 text-7xl">
+                    <i class="fa-solid fa-users"></i>
+                </div>
+                <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center text-xl flex-shrink-0 relative z-10">
+                    <div class="relative">
+                        <i class="fa-solid fa-user-check"></i>
+                        <span class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full animate-pulse"></span>
+                    </div>
+                </div>
+                <div class="relative z-10">
+                    <p class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Utilisateurs Actifs</p>
+                    <h3 id="stat-active-users" class="text-2xl font-bold text-emerald-600 mt-0.5">0</h3>
+                </div>
+            </div>
+
+            <!-- Carte: PCs en cours d'utilisation -->
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center h-[90px]">
+                <div class="flex items-center justify-between mb-1.5">
+                    <p class="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                        <i class="fa-solid fa-desktop text-purple-500"></i> PCs en cours
+                    </p>
+                    <span id="stat-active-pcs-count" class="bg-purple-100 text-purple-700 text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
+                </div>
+                <div id="stat-active-pcs" class="flex flex-wrap gap-1.5 overflow-y-auto custom-scrollbar max-h-12 items-start">
+                    <span class="text-xs text-slate-400 italic">Aucun PC actif</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dynamic Content Container -->
+        <div id="data-container" class="relative min-h-[300px] bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+            
+            <!-- Header Table Controls -->
+            <div class="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                <h2 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-table-list text-slate-400"></i> Détail des connexions du jour
+                </h2>
+            </div>
+
+            <!-- Loading State -->
+            <div id="loading-state" class="flex flex-col items-center justify-center py-20">
+                <div class="w-10 h-10 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin"></div>
+                <p class="text-sm font-semibold text-slate-700 mt-4">Récupération des données en cours...</p>
+            </div>
+
+            <!-- Error State -->
+            <div id="error-state" class="hidden py-16 text-center space-y-3 px-4">
+                <div class="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto text-xl">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <h3 class="text-base font-bold text-red-900">Erreur de synchronisation</h3>
+                <p id="error-message-text" class="text-xs text-red-700 max-w-md mx-auto"></p>
+                <button onclick="fetchSessions()" class="mt-4 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition-colors inline-block">
+                    Réessayer
+                </button>
+            </div>
+
+            <!-- Empty State -->
+            <div id="empty-state" class="hidden py-20 text-center px-4">
+                <div class="w-16 h-16 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto text-2xl mb-4">
+                    <i class="fa-solid fa-mug-hot"></i>
+                </div>
+                <h3 class="text-base font-bold text-slate-800">Aucune activité détectée</h3>
+                <p class="text-xs text-slate-500 mt-1">Il n'y a aucune session enregistrée pour le moment.</p>
+            </div>
+
+            <!-- Data Table -->
+            <div id="table-container" class="hidden overflow-x-auto custom-scrollbar flex-1">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50 border-b border-slate-200 text-[10px] uppercase tracking-wider font-bold text-slate-500">
+                            <th class="px-6 py-3 sticky top-0 bg-slate-50">ID</th>
+                            <th class="px-6 py-3 sticky top-0 bg-slate-50">Utilisateur</th>
+                            <th class="px-6 py-3 sticky top-0 bg-slate-50">Poste (PC)</th>
+                            <th class="px-6 py-3 sticky top-0 bg-slate-50">Jour</th>
+                            <th class="px-6 py-3 sticky top-0 bg-slate-50">Début</th>
+                            <th class="px-6 py-3 sticky top-0 bg-slate-50">Fin / Statut</th>
+                            <th class="px-6 py-3 sticky top-0 bg-slate-50 text-right">Durée</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sessions-tbody" class="divide-y divide-slate-100 text-sm">
+                        <!-- Rows injected via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // ===================================================================
+        // CONFIGURATION & ETAT
+        // ===================================================================
+        let API_BASE_URL = (localStorage.getItem('api_base_url') || `http://${window.location.host}`).replace(/\/+$/, '');
+        let sessionsData = [];
+
+        window.onload = function() {
+            fetchSessions();
+            // Optionnel : Actualisation automatique toutes les 30 secondes
+            // setInterval(fetchSessions, 30000); 
+        };
+
+        function getAuthHeaders() {
+            const token = localStorage.getItem('access_token');
+            const headers = { 'Accept': 'application/json', 'Content-Type': 'application/json' };
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+            return headers;
+        }
+
+        // ===================================================================
+        // APPEL API
+        // ===================================================================
+        async function fetchSessions() {
+            const loadingState = document.getElementById('loading-state');
+            const errorState = document.getElementById('error-state');
+            const tableContainer = document.getElementById('table-container');
+            const emptyState = document.getElementById('empty-state');
+            const refreshIcon = document.getElementById('refresh-icon');
+
+            // On affiche le loader seulement s'il n'y a pas encore de données pour éviter un clignotement
+            if (sessionsData.length === 0) {
+                loadingState.classList.remove('hidden');
+                tableContainer.classList.add('hidden');
+            }
+            
+            errorState.classList.add('hidden');
+            emptyState.classList.add('hidden');
+            if(refreshIcon) refreshIcon.classList.add('animate-spin');
+
+            updateStatusBadge('loading', 'Vérification en cours...');
+
+            try {
+                // Appel global des sessions
+                const endpoint = `${API_BASE_URL}/api/sessions/`; // Remplacez par le bon endpoint global
+                
+                const response = await fetch(endpoint, {
+                    method: 'GET',
+                    headers: getAuthHeaders()
+                });
+
+                if (response.status === 401) {
+                    throw new Error("Session expirée. Veuillez vous reconnecter.");
+                }
+
+                if (!response.ok) {
+                    throw new Error(`Erreur HTTP ${response.status} : ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                
+                sessionsData = Array.isArray(data) ? data : (data.results || data.data || []);
+
+                updateStatusBadge('success', 'En direct');
+                renderData();
+
+            } catch (error) {
+                console.error("API Fetch Error:", error);
+                showError(error.message);
+            } finally {
+                loadingState.classList.add('hidden');
+                if(refreshIcon) refreshIcon.classList.remove('animate-spin');
+            }
+        }
+
+        // ===================================================================
+        // RENDU UI & LOGIQUE MÉTIER
+        // ===================================================================
+        function isSessionActive(session) {
+            // Si aucune heure de fin, c'est en cours
+            if (!session.heure_fin) return true;
+            
+            // On calcule si l'heure de fin est proche de l'heure actuelle (marge de 60 secondes)
+            // car le champ heure_fin se met à jour automatiquement
+            const now = new Date();
+            
+            // Création d'un objet Date pour l'heure de fin de cette session
+            const sessionEnd = new Date(`${session.jour}T${session.heure_fin}`);
+            
+            // Différence en millisecondes
+            const diffMs = now - sessionEnd;
+            
+            // Si la dernière mise à jour de l'heure de fin date d'il y a 60 secondes ou moins,
+            // ou si l'heure de fin est dans le futur (différence négative), le PC est actif.
+            return diffMs <= 60000;
+        }
+
+        function renderData() {
+            const tableContainer = document.getElementById('table-container');
+            const emptyState = document.getElementById('empty-state');
+            const tbody = document.getElementById('sessions-tbody');
+
+            document.getElementById('stat-total').innerText = sessionsData.length;
+
+            let activePCs = new Set();
+            let activeUsers = new Set();
+
+            if (sessionsData.length > 0) {
+                // Tri décroissant : les sessions les plus récentes d'abord
+                sessionsData.sort((a, b) => {
+                    const dateA = new Date(`${a.jour}T${a.heure_debut}`);
+                    const dateB = new Date(`${b.jour}T${b.heure_debut}`);
+                    return dateB - dateA;
+                });
+
+                // Extraction des PCs et Utilisateurs actifs
+                console.log(sessionsData)
+                sessionsData.forEach(session => {
+                    if (isSessionActive(session)) {
+                        if (session.pc) activePCs.add(session.pc);
+                        // On gère le cas où l'API renvoie un id ou un nom d'utilisateur
+                        const username =  session.user__username;
+                        if (username) activeUsers.add(username);
+                    }
+                });
+            }
+
+            // Mise à jour des cartes
+            document.getElementById('stat-active-users').innerText = activeUsers.size;
+            
+            const pcListEl = document.getElementById('stat-active-pcs');
+            const pcCountEl = document.getElementById('stat-active-pcs-count');
+            
+            pcCountEl.innerText = activePCs.size;
+            
+            if (activePCs.size > 0) {
+                // Création des badges pour les PCs
+                pcListEl.innerHTML = Array.from(activePCs)
+                    .map(pc => `<span class="px-2 py-1 bg-purple-50 text-purple-700 border border-purple-100 rounded-md text-[10px] font-mono font-medium m-0.5 inline-flex items-center gap-1 shadow-sm"><i class="fa-solid fa-laptop text-[9px] text-purple-400"></i>${pc}</span>`)
+                    .join('');
+            } else {
+                pcListEl.innerHTML = `<span class="text-xs text-slate-400 italic flex items-center gap-1"><i class="fa-solid fa-power-off"></i> Aucun PC actuellement utilisé</span>`;
+            }
+
+            tbody.innerHTML = '';
+
+            if (sessionsData.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            tableContainer.classList.remove('hidden');
+
+            sessionsData.forEach(session => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-brand-50/60 transition-all duration-200 group cursor-pointer";
+                tr.onclick = () => { 
+                    const url = new URL(`${API_BASE_URL}/session_detail/`);
+                    url.searchParams.append('id', session.id);
+                    window.location.href = url;
+                };
+
+                const isActive = isSessionActive(session);
+                const heureDebut = formatTime(session.heure_debut);
+                
+                // Statut Fin / En cours
+                const celluleFin = isActive 
+                    ? '<span class="px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-[10px] font-bold uppercase flex items-center gap-1.5 w-fit"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> En cours</span>' 
+                    : `<div class="flex items-center gap-2 text-slate-600 font-mono text-xs"><i class="fa-solid fa-stop text-red-400 text-[10px]"></i> ${formatTime(session.heure_fin)}</div>`;
+                
+                // Utilisateur
+                const username = session.user__username ;
+                
+                const nomPc = session.pc ? session.pc : '<span class="text-slate-400 italic">Non spécifié</span>';
+
+                // Si c'est en cours, on calcule la durée depuis le début jusqu'à maintenant, sinon la durée réelle
+                const heureFinPourDuree = isActive ? (nowTimeString()) : session.heure_fin;
+                const duree = calculerDuree(session.heure_debut, heureFinPourDuree);
+
+                tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="font-mono text-slate-500 text-xs">#${session.id}</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center gap-2">
+                            <div class="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-[10px] text-slate-600 font-bold uppercase">
+                                ${username.toString().substring(0,2)}
+                            </div>
+                            <span class="font-medium text-slate-700">${username}</span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 py-1 bg-white text-slate-700 font-mono text-xs rounded border border-slate-200 group-hover:border-brand-300 transition-colors shadow-sm">${nomPc}</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="text-slate-600 text-xs font-medium">${formatDateFR(session.jour)}</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center gap-2 text-slate-600 font-mono text-xs">
+                            <i class="fa-solid fa-play text-brand-500 text-[10px]"></i> ${heureDebut}
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        ${celluleFin}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right flex items-center justify-end gap-3">
+                        <span class="font-semibold ${isActive ? 'text-emerald-600' : 'text-slate-800'} text-xs">${duree}</span>
+                        <i class="fa-solid fa-chevron-right text-slate-300 group-hover:text-brand-600 group-hover:translate-x-1 transition-all duration-200"></i>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // ===================================================================
+        // HELPERS (Utilitaires)
+        // ===================================================================
+        function showError(message) {
+            document.getElementById('error-message-text').innerText = message || "Impossible de récupérer les données.";
+            document.getElementById('error-state').classList.remove('hidden');
+            updateStatusBadge('error', 'Erreur API');
+            showToast(message, 'warning');
+        }
+
+        function updateStatusBadge(status, text) {
+            const dot = document.getElementById('api-status-dot');
+            const textEl = document.getElementById('api-status-text');
+
+            if (status === 'success') {
+                dot.className = "w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]";
+            } else if (status === 'error') {
+                dot.className = "w-2 h-2 rounded-full bg-red-500";
+            } else {
+                dot.className = "w-2 h-2 rounded-full bg-amber-500 animate-ping";
+            }
+            textEl.innerText = text;
+        }
+
+        function showToast(message, type = "info") {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+
+            let bgColors = type === "warning" ? "bg-amber-600 text-white shadow-amber-500/20" : "bg-slate-900 text-white";
+            let icon = type === "warning" ? "fa-triangle-exclamation" : "fa-circle-info";
+
+            toast.className = `pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg ${bgColors} text-xs font-semibold transition-all transform translate-y-2 duration-200`;
+            toast.innerHTML = `<i class="fa-solid ${icon} text-sm"></i> <span>${message}</span>`;
+            container.appendChild(toast);
+
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-2');
+                toast.classList.add('translate-y-0');
+            });
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', '-translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        function formatTime(timeStr) {
+            if (!timeStr) return '--:--:--';
+            return timeStr.split('.')[0]; 
+        }
+
+        function formatDateFR(dateStr) {
+            if (!dateStr) return 'Date inconnue';
+            const parts = dateStr.split('-');
+            if(parts.length !== 3) return dateStr;
+            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
+        
+        // Retourne l'heure actuelle au format HH:MM:SS
+        function nowTimeString() {
+            const now = new Date();
+            return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+        }
+
+        function calculerDuree(debutStr, finStr) {
+            if (!debutStr || !finStr) return '--';
+            
+            const dateDebut = new Date(`1970-01-01T${debutStr}Z`);
+            const dateFin = new Date(`1970-01-01T${finStr}Z`);
+            
+            let diffMs = dateFin - dateDebut;
+            if (diffMs < 0) diffMs += 24 * 60 * 60 * 1000; 
+            
+            const diffHrs = Math.floor((diffMs % 86400000) / 3600000);
+            const diffMins = Math.round(((diffMs % 86400000) % 3600000) / 60000);
+            
+            if (diffHrs === 0) return `${diffMins} min`;
+            return `${diffHrs}h ${diffMins.toString().padStart(2, '0')}m`;
+        }
+    </script>
+</body>
+{% endblock body %}
