@@ -143,3 +143,6 @@ print(
     f"Waitress et {NB_WORKERS} worker(s) Celery ont été lancés "
     f"dans des fenêtres séparées."
 )
+
+#Pour pouvoir lancer flower celery pour pouvoir voir les tâches en cours dans le navigateur
+#celery -A authentification.celery flower
