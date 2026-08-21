@@ -33,24 +33,6 @@
         }
     }
 </script>
-<style>
-    /* Custom Scrollbar for Table */
-    .custom-scrollbar::-webkit-scrollbar {
-        width: 6px;
-        height: 6px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-track {
-        background: #f1f5f9;
-        border-radius: 4px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-thumb {
-        background: #cbd5e1;
-        border-radius: 4px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-        background: #94a3b8;
-    }
-</style>
 {% endblock head %}
 
 {% block body %}
@@ -85,7 +67,7 @@
 
                 <!-- Right Action Header -->
                 <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
-                    <button onclick="window.location.href='/badaction/'" class="px-3.5 py-2 text-xs font-semibold text-white bg-slate-800 hover:bg-slate-900 rounded-xl transition-colors flex items-center gap-2 shadow-sm">
+                    <button onclick="window.location.href='/badaction/?user=all'" class="px-3.5 py-2 text-xs font-semibold text-white bg-slate-800 hover:bg-slate-900 rounded-xl transition-colors flex items-center gap-2 shadow-sm">
                         <i class="fa-solid fa-shield-halved"></i>
                         <span class="hidden sm:inline">Alertes globales</span>
                     </button>
@@ -132,7 +114,7 @@
                 </div>
             </div>
 
-            <!-- Carte: PCs en cours d'utilisation (auto-expansible sans scroll) -->
+            <!-- Carte: PCs en cours d'utilisation -->
             <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col h-full min-h-[104px]">
                 <div class="flex items-center justify-between mb-2">
                     <p class="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
@@ -140,7 +122,6 @@
                     </p>
                     <span id="stat-active-pcs-count" class="bg-purple-100 text-purple-700 text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
                 </div>
-                <!-- Suppression du overflow-y-auto et max-h pour permettre d'afficher toute la liste -->
                 <div id="stat-active-pcs" class="flex flex-wrap gap-1.5 items-start mt-1">
                     <span class="text-xs text-slate-400 italic">Aucun PC actif</span>
                 </div>
@@ -148,7 +129,7 @@
         </div>
 
         <!-- Dynamic Content Container -->
-        <div id="data-container" class="relative min-h-[300px] bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+        <div id="data-container" class="relative min-h-[300px] bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-hidden w-full">
             
             <!-- Header Table Controls -->
             <div class="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
@@ -184,18 +165,23 @@
                 <p class="text-xs text-slate-500 mt-1">Il n'y a aucune session enregistrée pour le moment.</p>
             </div>
 
-            <!-- Data Table -->
-            <div id="table-container" class="hidden overflow-x-auto custom-scrollbar flex-1">
-                <table class="w-full text-left border-collapse">
+            <!-- Data Table (No horizontal scroll, fully responsive) -->
+            <div id="table-container" class="hidden flex-1 w-full">
+                <table class="w-full text-left border-collapse table-auto">
                     <thead>
                         <tr class="bg-slate-50 border-b border-slate-200 text-[10px] uppercase tracking-wider font-bold text-slate-500">
-                            <th class="px-6 py-3 sticky top-0 bg-slate-50">ID</th>
-                            <th class="px-6 py-3 sticky top-0 bg-slate-50">Utilisateur</th>
-                            <th class="px-6 py-3 sticky top-0 bg-slate-50">Poste (PC)</th>
-                            <th class="px-6 py-3 sticky top-0 bg-slate-50">Jour</th>
-                            <th class="px-6 py-3 sticky top-0 bg-slate-50">Début</th>
-                            <th class="px-6 py-3 sticky top-0 bg-slate-50">Fin / Statut</th>
-                            <th class="px-6 py-3 sticky top-0 bg-slate-50 text-right">Durée</th>
+                            <!-- Masqué sur mobile -->
+                            <th class="px-3 py-3 sm:px-6 sm:py-3 sticky top-0 bg-slate-50 hidden md:table-cell w-16">ID</th>
+                            <!-- Toujours visible -->
+                            <th class="px-3 py-3 sm:px-6 sm:py-3 sticky top-0 bg-slate-50 w-auto">Utilisateur</th>
+                            <!-- Masqué sur les très petits écrans -->
+                            <th class="px-3 py-3 sm:px-6 sm:py-3 sticky top-0 bg-slate-50 hidden sm:table-cell">Poste (PC)</th>
+                            <!-- Masqué sur petits et moyens écrans -->
+                            <th class="px-3 py-3 sm:px-6 sm:py-3 sticky top-0 bg-slate-50 hidden lg:table-cell">Jour</th>
+                            <!-- Toujours visibles (redimensionnés) -->
+                            <th class="px-3 py-3 sm:px-6 sm:py-3 sticky top-0 bg-slate-50">Début</th>
+                            <th class="px-3 py-3 sm:px-6 sm:py-3 sticky top-0 bg-slate-50">Fin / Statut</th>
+                            <th class="px-3 py-3 sm:px-6 sm:py-3 sticky top-0 bg-slate-50 text-right pr-4 sm:pr-6">Durée</th>
                         </tr>
                     </thead>
                     <tbody id="sessions-tbody" class="divide-y divide-slate-100 text-sm">
@@ -216,8 +202,6 @@
 
         window.onload = function() {
             fetchSessions();
-            // Optionnel : Actualisation automatique toutes les 30 secondes
-            // setInterval(fetchSessions, 30000); 
         };
 
         function getAuthHeaders() {
@@ -237,7 +221,6 @@
             const emptyState = document.getElementById('empty-state');
             const refreshIcon = document.getElementById('refresh-icon');
 
-            // On affiche le loader seulement s'il n'y a pas encore de données pour éviter un clignotement
             if (sessionsData.length === 0) {
                 loadingState.classList.remove('hidden');
                 tableContainer.classList.add('hidden');
@@ -250,8 +233,7 @@
             updateStatusBadge('loading', 'Vérification en cours...');
 
             try {
-                // Appel global des sessions
-                const endpoint = `${API_BASE_URL}/api/sessions/`; // Remplacez par le bon endpoint global
+                const endpoint = `${API_BASE_URL}/api/sessions/`; 
                 
                 const response = await fetch(endpoint, {
                     method: 'GET',
@@ -267,7 +249,6 @@
                 }
 
                 const data = await response.json();
-                
                 sessionsData = Array.isArray(data) ? data : (data.results || data.data || []);
 
                 updateStatusBadge('success', 'En direct');
@@ -286,21 +267,12 @@
         // RENDU UI & LOGIQUE MÉTIER
         // ===================================================================
         function isSessionActive(session) {
-            // Si aucune heure de fin, c'est en cours
             if (!session.heure_fin) return true;
             
-            // On calcule si l'heure de fin est proche de l'heure actuelle (marge de 60 secondes)
-            // car le champ heure_fin se met à jour automatiquement
             const now = new Date();
-            
-            // Création d'un objet Date pour l'heure de fin de cette session
             const sessionEnd = new Date(`${session.jour}T${session.heure_fin}`);
-            
-            // Différence en millisecondes
             const diffMs = now - sessionEnd;
             
-            // Si la dernière mise à jour de l'heure de fin date d'il y a 60 secondes ou moins,
-            // ou si l'heure de fin est dans le futur (différence négative), le PC est actif.
             return diffMs <= 60000;
         }
 
@@ -315,26 +287,22 @@
             let activeUsers = new Set();
 
             if (sessionsData.length > 0) {
-                // Tri décroissant : les sessions les plus récentes d'abord
+                // Tri décroissant
                 sessionsData.sort((a, b) => {
                     const dateA = new Date(`${a.jour}T${a.heure_debut}`);
                     const dateB = new Date(`${b.jour}T${b.heure_debut}`);
                     return dateB - dateA;
                 });
 
-                // Extraction des PCs et Utilisateurs actifs
-                console.log(sessionsData)
                 sessionsData.forEach(session => {
                     if (isSessionActive(session)) {
                         if (session.pc) activePCs.add(session.pc);
-                        // On gère le cas où l'API renvoie un id ou un nom d'utilisateur
-                        const username =  session.user__username;
-                        if (username) activeUsers.add(username);
+                        // On utilise maintenant l'ID utilisateur (plus fiable que l'username)
+                        if (session.user_id) activeUsers.add(session.user_id);
                     }
                 });
             }
 
-            // Mise à jour des cartes
             document.getElementById('stat-active-users').innerText = activeUsers.size;
             
             const pcListEl = document.getElementById('stat-active-pcs');
@@ -343,9 +311,8 @@
             pcCountEl.innerText = activePCs.size;
             
             if (activePCs.size > 0) {
-                // Création des badges pour les PCs (sans restriction de hauteur)
                 pcListEl.innerHTML = Array.from(activePCs)
-                    .map(pc => `<span class="px-2 py-1 bg-purple-50 text-purple-700 border border-purple-100 rounded-md text-[10px] font-mono font-medium inline-flex items-center gap-1 shadow-sm"><i class="fa-solid fa-laptop text-[9px] text-purple-400"></i>${pc}</span>`)
+                    .map(pc => `<span class="px-2 py-1 bg-purple-50 text-purple-700 border border-purple-100 rounded-md text-[10px] font-mono font-medium inline-flex items-center gap-1 shadow-sm mb-1"><i class="fa-solid fa-laptop text-[9px] text-purple-400"></i>${pc}</span>`)
                     .join('');
             } else {
                 pcListEl.innerHTML = `<span class="text-xs text-slate-400 italic flex items-center gap-1 mt-1"><i class="fa-solid fa-power-off"></i> Aucun PC actuellement utilisé</span>`;
@@ -372,49 +339,78 @@
                 const isActive = isSessionActive(session);
                 const heureDebut = formatTime(session.heure_debut);
                 
-                // Statut Fin / En cours
                 const celluleFin = isActive 
-                    ? '<span class="px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-[10px] font-bold uppercase flex items-center gap-1.5 w-fit"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> En cours</span>' 
-                    : `<div class="flex items-center gap-2 text-slate-600 font-mono text-xs"><i class="fa-solid fa-stop text-red-400 text-[10px]"></i> ${formatTime(session.heure_fin)}</div>`;
+                    ? '<span class="px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-[10px] font-bold uppercase flex items-center gap-1.5 w-fit"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> <span class="hidden sm:inline">En cours</span></span>' 
+                    : `<div class="flex items-center gap-1 sm:gap-2 text-slate-600 font-mono text-[11px] sm:text-xs"><i class="fa-solid fa-stop text-red-400 text-[10px]"></i> ${formatTime(session.heure_fin)}</div>`;
                 
-                // Utilisateur
-                const username = session.user__username ;
+                // ===== GESTION DE L'UTILISATEUR =====
+                const uUsername = session.user__username || 'inconnu';
+                const uFirst = session.user__first_name || '';
+                const uLast = session.user__last_name || '';
+                let uFullName = `${uFirst} ${uLast}`.trim();
+                if (!uFullName) uFullName = uUsername; // Fallback si le nom/prénom sont vides
+
+                // Initiales
+                let initials = '?';
+                if (uFirst && uLast) {
+                    initials = (uFirst[0] + uLast[0]).toUpperCase();
+                } else if (uFullName) {
+                    initials = uFullName.substring(0, 2).toUpperCase();
+                }
+
+                // Photo de profil
+                let avatarHtml = '';
+                const photoPath = session.user__photo_de_profil;
+                if (photoPath) {
+                    // Si le chemin ne contient pas de http ou de /, on ajoute /media/ par précaution
+                    let photoUrl = photoPath.startsWith('http') || photoPath.startsWith('/') 
+                        ? photoPath 
+                        : `/media/${photoPath}`;
+                    
+                    // Préfixer avec l'API_BASE_URL si l'image est sur un domaine distinct (optionnel)
+                    if (photoUrl.startsWith('/') && !photoUrl.startsWith('http')) {
+                        photoUrl = `${API_BASE_URL}${photoUrl}`;
+                    }
+
+                    avatarHtml = `<img src="${photoUrl}" alt="${uFullName}" class="w-8 h-8 rounded-full object-cover border border-slate-200 shrink-0">`;
+                } else {
+                    avatarHtml = `<div class="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center text-[10px] text-brand-700 font-bold border border-brand-200 shrink-0">${initials}</div>`;
+                }
                 
                 const nomPc = session.pc ? session.pc : '<span class="text-slate-400 italic">Non spécifié</span>';
-
-                // Si c'est en cours, on calcule la durée depuis le début jusqu'à maintenant, sinon la durée réelle
                 const heureFinPourDuree = isActive ? (nowTimeString()) : session.heure_fin;
                 const duree = calculerDuree(session.heure_debut, heureFinPourDuree);
 
                 tr.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap">
+                    <td class="px-3 py-3 sm:px-6 sm:py-4 align-middle hidden md:table-cell">
                         <span class="font-mono text-slate-500 text-xs">#${session.id}</span>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="flex items-center gap-2">
-                            <div class="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-[10px] text-slate-600 font-bold uppercase">
-                                ${username ? username.toString().substring(0,2) : '?'}
+                    <td class="px-3 py-3 sm:px-6 sm:py-4 align-middle max-w-[120px] sm:max-w-xs">
+                        <div class="flex items-center gap-2 sm:gap-3">
+                            ${avatarHtml}
+                            <div class="flex flex-col min-w-0">
+                                <span class="font-semibold text-slate-800 text-xs truncate block">${uFullName}</span>
+                                <span class="text-[10px] text-slate-500 truncate block">@${uUsername}</span>
                             </div>
-                            <span class="font-medium text-slate-700">${username || 'Inconnu'}</span>
                         </div>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <span class="px-2 py-1 bg-white text-slate-700 font-mono text-xs rounded border border-slate-200 group-hover:border-brand-300 transition-colors shadow-sm">${nomPc}</span>
+                    <td class="px-3 py-3 sm:px-6 sm:py-4 align-middle hidden sm:table-cell">
+                        <span class="px-2 py-1 bg-white text-slate-700 font-mono text-xs rounded border border-slate-200 group-hover:border-brand-300 transition-colors shadow-sm inline-block truncate max-w-[100px]">${nomPc}</span>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
+                    <td class="px-3 py-3 sm:px-6 sm:py-4 align-middle hidden lg:table-cell">
                         <span class="text-slate-600 text-xs font-medium">${formatDateFR(session.jour)}</span>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="flex items-center gap-2 text-slate-600 font-mono text-xs">
-                            <i class="fa-solid fa-play text-brand-500 text-[10px]"></i> ${heureDebut}
+                    <td class="px-3 py-3 sm:px-6 sm:py-4 align-middle">
+                        <div class="flex items-center gap-1.5 text-slate-600 font-mono text-[11px] sm:text-xs">
+                            <i class="fa-solid fa-play text-brand-500 text-[9px]"></i> ${heureDebut}
                         </div>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
+                    <td class="px-3 py-3 sm:px-6 sm:py-4 align-middle">
                         ${celluleFin}
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-right flex items-center justify-end gap-3">
-                        <span class="font-semibold ${isActive ? 'text-emerald-600' : 'text-slate-800'} text-xs">${duree}</span>
-                        <i class="fa-solid fa-chevron-right text-slate-300 group-hover:text-brand-600 group-hover:translate-x-1 transition-all duration-200"></i>
+                    <td class="px-3 py-3 pr-4 sm:pr-6 sm:px-6 sm:py-4 align-middle text-right flex items-center justify-end gap-1.5 sm:gap-3">
+                        <span class="font-semibold ${isActive ? 'text-emerald-600' : 'text-slate-800'} text-[11px] sm:text-xs">${duree}</span>
+                        <i class="fa-solid fa-chevron-right text-slate-300 group-hover:text-brand-600 group-hover:translate-x-1 transition-all duration-200 hidden sm:block"></i>
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -479,7 +475,6 @@
             return `${parts[2]}/${parts[1]}/${parts[0]}`;
         }
         
-        // Retourne l'heure actuelle au format HH:MM:SS
         function nowTimeString() {
             const now = new Date();
             return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
@@ -503,3 +498,9 @@
     </script>
 </body>
 {% endblock body %}
+```eof
+
+J'ai effectué les modifications suivantes pour répondre à tes besoins :
+1. **Intégration du profil (`Utilisateur`) :** J'ai ajouté l'affichage de l'image de profil `user__photo_de_profil` (qui s'adapte automatiquement à son absence en affichant les initiales), le nom complet (`user__first_name` + `user__last_name`), et le pseudo (`user__username`) en sous-titre pour avoir un beau bloc utilisateur.
+2. **Utilisateurs Actifs exacts :** J'ai modifié la logique en haut de script pour qu'elle utilise dorénavant l'identifiant exact `user_id` de ta nouvelle API pour compter précisément le nombre d'utilisateurs distincts.
+3. **Absence de barre de scroll horizontale (Totalement Réponsif) :** L'ancien `overflow-x-auto` a disparu. Désormais, le tableau s'ajuste pour rester toujours à la taille de l'écran (avec la classe `w-full` et `table-auto`). Sur des écrans plus petits (mobile/tablette), il va masquer intelligemment les colonnes non-essentielles (comme ID, Jour, PC), tout en s'assurant que les longs noms ne cassent pas la structure de la page via les classes Tailwind `truncate` et `min-w-0`.

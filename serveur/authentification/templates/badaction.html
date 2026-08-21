@@ -33,18 +33,7 @@
     }
 </script>
 <style>
-    .custom-scrollbar::-webkit-scrollbar {
-        width: 6px;
-        height: 6px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-track {
-        background: #f1f5f9;
-    }
-    .custom-scrollbar::-webkit-scrollbar-thumb {
-        background: #cbd5e1;
-        border-radius: 4px;
-    }
-    /* Tronquer le texte sur plusieurs lignes */
+    /* Tronquer le texte sur plusieurs lignes (uniquement pour la justification maintenant) */
     .line-clamp-2 {
         display: -webkit-box;
         -webkit-line-clamp: 2;
@@ -76,7 +65,7 @@
                             <i class="fa-solid fa-shield-halved"></i>
                         </div>
                         <div>
-                            <h1 class="text-lg font-bold text-slate-900 leading-tight">Historique des Mauvaises Actions</h1>
+                            <h1 class="text-lg font-bold text-slate-900 leading-tight">Listes des Mauvaises Actions</h1>
                             <p class="text-xs text-red-600 font-medium flex items-center gap-1.5">
                                 <span id="api-status-dot" class="w-2 h-2 rounded-full bg-slate-300"></span>
                                 <span id="api-status-text">Recherche de l'utilisateur...</span>
@@ -87,12 +76,18 @@
 
                 <!-- Right Action Header -->
                 <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
-                    <div class="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 rounded-xl border border-slate-200 items-center gap-2 flex">
+                    
+                    <!-- Utilisateur Unique - Affichage du profil complet (Caché par défaut) -->
+                    <div id="user-profile-header" class="hidden flex items-center gap-3 border-r border-slate-200 pr-3 mr-1">
+                        <!-- Injecté via JS -->
+                    </div>
+
+                    <div class="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 rounded-xl border border-slate-200 items-center gap-2 flex shrink-0">
                         <i class="fa-solid fa-user-tag text-slate-400"></i>
                         Cible : <span id="target-user-badge" class="font-mono font-bold text-red-700">--</span>
                     </div>
 
-                    <button onclick="fetchBadActions()" class="px-3.5 py-2 text-xs font-semibold text-white bg-slate-800 hover:bg-slate-900 rounded-xl transition-colors flex items-center gap-2 shadow-sm">
+                    <button onclick="fetchBadActions()" class="px-3.5 py-2 text-xs font-semibold text-white bg-slate-800 hover:bg-slate-900 rounded-xl transition-colors flex items-center gap-2 shadow-sm shrink-0">
                         <i class="fa-solid fa-rotate-right" id="refresh-icon"></i>
                         <span class="hidden sm:inline">Actualiser</span>
                     </button>
@@ -175,15 +170,18 @@
             </div>
 
             <!-- Data Table -->
-            <div id="table-container" class="hidden overflow-x-auto custom-scrollbar">
-                <table class="w-full text-left border-collapse">
+            <!-- Note: suppression du scroll horizontal et utilisation de table-fixed -->
+            <div id="table-container" class="hidden w-full overflow-hidden">
+                <table class="w-full text-left border-collapse table-fixed">
                     <thead>
                         <tr class="bg-slate-50 border-b border-slate-200 text-[10px] uppercase tracking-wider font-bold text-slate-500">
-                            <th class="px-6 py-3">Date & Heure</th>
-                            <th class="px-6 py-3">Application</th>
-                            <th class="px-6 py-3 w-1/3">Action / Titre</th>
-                            <th class="px-6 py-3 w-1/3">Justification (IA)</th>
-                            <th class="px-6 py-3 text-center">Score de Confiance</th>
+                            <!-- Les largeurs (w-[...]) sont définies pour occuper 100% au total, forçant un ajustement parfait -->
+                            <th id="col-user" class="px-3 py-3 hidden w-[18%]">Utilisateur</th>
+                            <th class="px-3 py-3 w-[12%]">Date & Heure</th>
+                            <th class="px-3 py-3 w-[14%]">Application</th>
+                            <th class="px-3 py-3 w-[28%]">Action / Titre</th>
+                            <th class="px-3 py-3 w-[20%]">Justification (IA)</th>
+                            <th class="px-3 py-3 w-[8%] text-center">Score</th>
                         </tr>
                     </thead>
                     <tbody id="actions-tbody" class="divide-y divide-slate-100 text-sm">
@@ -202,6 +200,7 @@
         let API_BASE_URL = (localStorage.getItem('api_base_url') || `http://${window.location.host}`).replace(/\/+$/, '');
         let targetUser = new URLSearchParams(window.location.search).get('user');
         let actionsData = [];
+        let isAllUsers = false;
 
         window.onload = function() {
             if (!targetUser) {
@@ -209,7 +208,8 @@
                 return;
             }
             
-            document.getElementById('target-user-badge').innerText = targetUser;
+            isAllUsers = (targetUser.toLowerCase() === 'all');
+            document.getElementById('target-user-badge').innerText = isAllUsers ? "Tous les utilisateurs" : targetUser;
             fetchBadActions();
         };
 
@@ -271,7 +271,6 @@
 
         // ===================================================================
         // PARSING DES DONNÉES COMPLEXES (String -> JSON/Valeurs)
-        // Remplacement de l'ancienne fonction par parsePyDict (beaucoup plus robuste)
         // ===================================================================
         function parsePyDict(input) {
             if (input === null || input === undefined) return null;
@@ -279,10 +278,8 @@
             const s = String(input).trim();
             if (!s) return null;
 
-            // Tentative JSON pur
             try { return JSON.parse(s); } catch (e) { }
 
-            // Parseur caractère par caractère (tolérant au format Python)
             let i = 0;
             const len = s.length;
             const skipWs = () => { while (i < len && /\s/.test(s[i])) i++; };
@@ -360,6 +357,33 @@
             const tableContainer = document.getElementById('table-container');
             const emptyState = document.getElementById('empty-state');
             const tbody = document.getElementById('actions-tbody');
+            const colUser = document.getElementById('col-user');
+            const profileHeader = document.getElementById('user-profile-header');
+
+            // Gérer l'affichage de la colonne utilisateur (Tableau)
+            if (isAllUsers) {
+                colUser.classList.remove('hidden');
+                profileHeader.classList.add('hidden');
+            } else {
+                colUser.classList.add('hidden');
+                
+                // Si on a un utilisateur spécifique et qu'on a des données, on affiche son profil en haut
+                if (actionsData.length > 0) {
+                    const firstAction = actionsData[0];
+                    const { u_username, u_firstName, u_lastName, u_fullName, photoUrl } = extractUserDetails(firstAction);
+                    
+                    profileHeader.innerHTML = `
+                        <img src="${photoUrl}" alt="Photo de profil" class="w-9 h-9 rounded-full object-cover border-2 border-white shadow-sm bg-slate-100">
+                        <div class="flex flex-col leading-tight">
+                            <span class="text-sm font-bold text-slate-800">${u_fullName}</span>
+                            <span class="text-[10px] text-slate-500 font-mono">@${u_username}</span>
+                        </div>
+                    `;
+                    profileHeader.classList.remove('hidden');
+                } else {
+                    profileHeader.classList.add('hidden');
+                }
+            }
 
             // Màj Statistiques
             document.getElementById('stat-total').innerText = actionsData.length;
@@ -368,7 +392,7 @@
                 // Tri par date décroissante
                 actionsData.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-                // Calcul de la confiance moyenne en utilisant parsePyDict
+                // Calcul de la confiance moyenne
                 let totalConf = 0;
                 let confCount = 0;
 
@@ -412,7 +436,7 @@
                 const appName = parsedInput.application || 'Inconnu';
                 const confidence = parseFloat(parsedJust.confiance) || 0;
                 
-                // Fallback propre pour la justification (supporte les chaînes directes ou dict)
+                // Fallback propre pour la justification
                 let justificationText = parsedJust.justification || action.justification;
                 if (typeof justificationText !== 'string') {
                     justificationText = "Aucune justification détaillée fournie.";
@@ -426,32 +450,52 @@
 
                 const dateObj = new Date(action.created_at);
 
+                // Construction de la cellule Utilisateur si "all"
+                let userCellHtml = '';
+                if (isAllUsers) {
+                    const { u_username, u_fullName, photoUrl } = extractUserDetails(action);
+                    userCellHtml = `
+                        <td class="px-3 py-3 align-top overflow-hidden">
+                            <div class="flex items-center gap-2">
+                                <img src="${photoUrl}" alt="Profil" class="w-7 h-7 rounded-full object-cover border border-slate-200 bg-slate-100 shrink-0">
+                                <div class="flex flex-col min-w-0">
+                                    <span class="text-[12px] font-bold text-slate-800 truncate">${u_fullName}</span>
+                                    <span class="text-[9px] text-slate-500 font-mono truncate">@${u_username}</span>
+                                </div>
+                            </div>
+                        </td>
+                    `;
+                }
+
+                // Application des classes align-top, px-3, py-3 au lieu de px-6 pour optimiser l'espace
+                // Retrait du line-clamp et ajout du break-words pour le titre
                 tr.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap">
+                    ${userCellHtml}
+                    <td class="px-3 py-3 align-top">
                         <div class="flex flex-col">
-                            <span class="font-semibold text-slate-800">${formatDateFR(dateObj)}</span>
-                            <span class="text-xs text-slate-500 font-mono"><i class="fa-regular fa-clock"></i> ${formatTimeOnly(dateObj)}</span>
+                            <span class="font-semibold text-slate-800 text-xs">${formatDateFR(dateObj)}</span>
+                            <span class="text-[10px] text-slate-500 font-mono"><i class="fa-regular fa-clock"></i> ${formatTimeOnly(dateObj)}</span>
                         </div>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <span class="px-2.5 py-1 bg-slate-100 text-slate-700 font-mono text-xs rounded-lg border border-slate-200 flex items-center w-max gap-2">
-                            <i class="${getAppIcon(appName)} text-sm"></i>
-                            ${appName}
+                    <td class="px-3 py-3 align-top overflow-hidden">
+                        <span class="px-2 py-1 bg-slate-100 text-slate-700 font-mono text-[10px] rounded border border-slate-200 inline-flex items-center gap-1.5 break-all max-w-full">
+                            <i class="${getAppIcon(appName)} text-[11px] shrink-0"></i>
+                            <span class="truncate">${appName}</span>
                         </span>
                     </td>
-                    <td class="px-6 py-4">
-                        <div class="text-sm font-medium text-slate-800 line-clamp-2" title="${action.titre || ''}">
+                    <td class="px-3 py-3 align-top">
+                        <div class="text-[12px] font-medium text-slate-800 break-words whitespace-normal leading-snug w-full">
                             ${action.titre || 'Action inconnue'}
                         </div>
                     </td>
-                    <td class="px-6 py-4 max-w-xs">
-                        <div class="justification-cell text-xs text-slate-600 bg-slate-50 p-2 rounded border border-slate-100 line-clamp-2 cursor-pointer">
+                    <td class="px-3 py-3 align-top">
+                        <div class="justification-cell text-[11px] text-slate-600 bg-slate-50 p-2 rounded border border-slate-100 line-clamp-2 cursor-pointer break-words leading-tight">
                             ${justificationText}
                         </div>
-                        ${justificationText.length > 90 ? `<button type="button" class="toggle-justification-btn mt-1 text-[11px] font-semibold text-red-600 hover:text-red-700 hover:underline">Voir plus</button>` : ''}
+                        ${justificationText.length > 80 ? `<button type="button" class="toggle-justification-btn mt-1 text-[10px] font-semibold text-red-600 hover:text-red-700 hover:underline">Voir plus</button>` : ''}
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-center">
-                        <div class="inline-flex items-center justify-center px-2.5 py-1 rounded-full font-bold text-xs ${badgeColor}">
+                    <td class="px-3 py-3 align-top text-center">
+                        <div class="inline-flex items-center justify-center px-2 py-1 rounded-full font-bold text-[10px] ${badgeColor}">
                             ${percent}%
                         </div>
                     </td>
@@ -463,6 +507,32 @@
         // ===================================================================
         // HELPERS (Utilitaires)
         // ===================================================================
+        
+        function extractUserDetails(actionData) {
+            const u_username = actionData.application__session__user__username || actionData.username || 'Inconnu';
+            const u_firstName = actionData.application__session__user__first_name || actionData.first_name || '';
+            const u_lastName = actionData.application__session__user__last_name || actionData.last_name || '';
+            const rawPhoto = actionData.application__session__user__photo_de_profil || actionData.photo_de_profil || null;
+
+            const u_fullName = `${u_firstName} ${u_lastName}`.trim() || u_username;
+            const photoUrl = getProfileImageUrl(rawPhoto, u_fullName);
+
+            return { u_username, u_firstName, u_lastName, u_fullName, photoUrl };
+        }
+
+        function getProfileImageUrl(photoPath, fallbackName) {
+            if (!photoPath || photoPath === 'null') {
+                return `https://ui-avatars.com/api/?name=${encodeURIComponent(fallbackName || 'User')}&background=random&color=fff`;
+            }
+            if (photoPath.startsWith('http')) return photoPath;
+            
+            let cleanPath = photoPath.startsWith('/') ? photoPath : '/' + photoPath;
+            if (!cleanPath.startsWith('/media/')) {
+                cleanPath = '/media' + cleanPath;
+            }
+            return `${API_BASE_URL}${cleanPath}`;
+        }
+
         function formatDateTimeFR(date) {
             if (!(date instanceof Date) || isNaN(date)) return '--/--/----';
             return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute:'2-digit' });
@@ -564,3 +634,4 @@
     </script>
 </body>
 {% endblock body %}
+```eof

@@ -161,7 +161,18 @@ class VoirSessionUtilisateurApiView(APIView):
 
         liste_session = Session_activite.objects.filter(user=utilisateur)
 
-        liste = list(liste_session.values())
+        liste = list(liste_session.values(
+            'id',
+            'user_id',
+            'user__username',
+            'user__first_name',
+            "user__last_name",
+            'user__photo_de_profil',
+            'jour',
+            'pc',
+            'heure_debut',
+            'heure_fin',
+        ))
 
         return Response(
             liste
@@ -179,6 +190,9 @@ class VoirSessionActuelleApiView(APIView):
             'id',
             'user_id',
             'user__username',
+            'user__first_name',
+            "user__last_name",
+            'user__photo_de_profil',
             'jour',
             'pc',
             'heure_debut',
@@ -221,7 +235,18 @@ class VoirApplicationSessionApiView(APIView):
             ,status=400)
         session = Session_activite.objects.filter(id=session_id).first()
         liste_application = Application.objects.filter(session = session)
-        liste = list(liste_application.values())
+        liste = list(liste_application.values(
+            'id',
+            "session__user__username",
+            "session__user__first_name",
+            "session__user__last_name",
+            "session__user__photo_de_profil",
+            "nom",
+            "heure_debut",
+            "heure_fin",
+            "verified",
+            "justification"
+        ))
         return Response(
             liste
         )
@@ -234,16 +259,45 @@ class VoirBadActionUtilisateurPerUserApiView(APIView):
     def get(self,request):
         user = request.query_params.get('user')
         if user is None:
+            
             return Response(
                 {'available':None,
                 'session':user,
                 'message':"Aucun user n'a été spécifié"}
             ,status=400)
+        if user=='all':
+            liste_bad_action = Bad_action.objects.all()
+            liste = list(liste_bad_action.values(
+                'id',
+                "application__session__user__username",
+                "application__session__user__first_name",
+                "application__session__user__last_name",
+                "application__session__user__photo_de_profil",
+                "text_input",
+                "justification",
+                "created_at",
+                "nombre",
+                "titre"
+            ))
+            
+            return Response(
+            liste)
         utilisateur = User.objects.filter(Q(username__iexact = user)|Q(telephone__iexact=user)|Q(email__iexact=user)).first()
 
         liste_bad_action = Bad_action.objects.filter(application__session__user = utilisateur)
 
-        liste = list(liste_bad_action.values())
+        liste = list(liste_bad_action.values(
+            'id',
+            "application__session__user__username",
+            "application__session__user__first_name",
+            "application__session__user__last_name",
+            "application__session__user__photo_de_profil",
+            "text_input",
+            "justification",
+            "created_at",
+            "nombre",
+            "titre"
+        ))
 
         return Response(
             liste
@@ -266,7 +320,18 @@ class VoirBadActionUtilisateurPerSessionApiView(APIView):
 
         liste_bad_action = Bad_action.objects.filter(application__session=session)
 
-        liste = list(liste_bad_action.values())
+        liste = list(liste_bad_action.values(
+            'id',
+            "application__session__user__username",
+            "application__session__user__first_name",
+            "application__session__user__last_name",
+            "application__session__user__photo_de_profil",
+            "text_input",
+            "justification",
+            "created_at",
+            "nombre",
+            "titre"
+        ))
 
         return Response(
             liste
@@ -367,7 +432,7 @@ def session(request:HttpRequest):
     return render(request,'session.html')
 
 def toute_session(request:HttpRequest):
-    return render(request,'toute_session.html')
+    return render(request,'toute_session_jour.html')
 
 def session_detail(request:HttpRequest):
     return render(request,'session_detail.html')

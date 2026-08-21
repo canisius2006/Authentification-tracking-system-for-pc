@@ -78,18 +78,27 @@
                     </div>
                 </div>
 
-                <!-- Right Action Header -->
+                <!-- Right Action Header avec Profil Utilisateur Enrichi -->
                 <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
-                    <div class="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 rounded-xl border border-slate-200 items-center gap-2 flex">
-                        <i class="fa-solid fa-user-tag text-slate-400"></i>
-                        Cible : <span id="target-user-badge" class="font-mono font-bold text-brand-700">--</span>
+                    
+                    <!-- Carte de profil du membre ciblé -->
+                    <div id="target-user-card" class="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-3 shadow-sm">
+                        <div class="relative w-9 h-9 rounded-full ring-2 ring-brand-500/20 bg-slate-200 flex items-center justify-center overflow-hidden flex-shrink-0">
+                            <img id="user-avatar" src="" alt="Photo de profil" class="w-full h-full object-cover hidden" onerror="this.classList.add('hidden'); document.getElementById('user-avatar-placeholder').classList.remove('hidden');">
+                            <i id="user-avatar-placeholder" class="fa-solid fa-user text-slate-400 text-sm"></i>
+                        </div>
+                        <div class="flex flex-col text-left leading-tight">
+                            <span id="user-full-name" class="text-xs font-bold text-slate-800">Chargement...</span>
+                            <span id="user-username" class="text-[10px] font-mono text-slate-500">@--</span>
+                        </div>
                     </div>
-                    <button  onclick="fetchUserBadActions()" class="px-3.5 py-2 text-xs font-semibold text-white bg-slate-800 hover:bg-slate-900 rounded-xl transition-colors flex items-center gap-2 shadow-sm">
+
+                    <button onclick="fetchUserBadActions()" class="px-3.5 py-2 text-xs font-semibold text-white bg-slate-800 hover:bg-slate-900 rounded-xl transition-colors flex items-center gap-2 shadow-sm">
                         <i class="fa-solid fa-rotate-right" id="refresh-icon"></i>
                         <span class="hidden sm:inline">Voir toutes les mauvaises actions</span>
                     </button>
                     <button onclick="fetchUserSessions()" class="px-3.5 py-2 text-xs font-semibold text-white bg-slate-800 hover:bg-slate-900 rounded-xl transition-colors flex items-center gap-2 shadow-sm">
-                        <i class="fa-solid fa-rotate-right" id="refresh-icon"></i>
+                        <i class="fa-solid fa-rotate-right"></i>
                         <span class="hidden sm:inline">Actualiser</span>
                     </button>
                 </div>
@@ -206,7 +215,10 @@
                 return;
             }
             
-            document.getElementById('target-user-badge').innerText = targetUser;
+            // Valeurs par défaut temporaires
+            document.getElementById('user-full-name').innerText = targetUser;
+            document.getElementById('user-username').innerText = `@${targetUser}`;
+            
             fetchUserSessions();
         };
 
@@ -217,11 +229,11 @@
             return headers;
         }
 
-        // Tous les bad_actions d'une personnes 
+        // Tous les bad_actions d'une personne
         function fetchUserBadActions(){
-            const user = new URLSearchParams(window.location.search).get('user') 
-            const url = new URL(`${API_BASE_URL}/badaction/?user=${user}`)
-            window.location.href=(url)
+            const user = new URLSearchParams(window.location.search).get('user');
+            const url = new URL(`${API_BASE_URL}/badaction/?user=${user}`);
+            window.location.href = url;
         }
 
         // ===================================================================
@@ -284,6 +296,42 @@
             const emptyState = document.getElementById('empty-state');
             const tbody = document.getElementById('sessions-tbody');
 
+            // ---------------------------------------------------------------
+            // MISE À JOUR DU PROFIL DE L'UTILISATEUR (NOUVEAUX CHAMPS)
+            // ---------------------------------------------------------------
+            if (sessionsData.length > 0) {
+                const userObj = sessionsData[0]; // Tous les éléments du tableau ont le même profil utilisateur
+                
+                const firstName = (userObj.user__first_name || '').trim();
+                const lastName = (userObj.user__last_name || '').trim();
+                const username = userObj.user__username || targetUser;
+                const photoPath = userObj.user__photo_de_profil;
+
+                // Nom complet (Prénom + Nom) ou fallback sur Username
+                const fullName = (firstName || lastName) ? `${firstName} ${lastName}`.trim() : username;
+
+                document.getElementById('user-full-name').innerText = fullName;
+                document.getElementById('user-username').innerText = `@${username}`;
+
+                // Affichage de la photo de profil
+                const avatarImg = document.getElementById('user-avatar');
+                const avatarPlaceholder = document.getElementById('user-avatar-placeholder');
+
+                if (photoPath) {
+                    let fullPhotoUrl = photoPath;
+                    if (!photoPath.startsWith('http://') && !photoPath.startsWith('https://')) {
+                        const cleanPath = photoPath.startsWith('/') ? photoPath : `/${photoPath}`;
+                        fullPhotoUrl = `${API_BASE_URL}/media${cleanPath}`;
+                    }
+                    avatarImg.src = fullPhotoUrl;
+                    avatarImg.classList.remove('hidden');
+                    avatarPlaceholder.classList.add('hidden');
+                } else {
+                    avatarImg.classList.add('hidden');
+                    avatarPlaceholder.classList.remove('hidden');
+                }
+            }
+
             // Mise à jour des statistiques
             document.getElementById('stat-total').innerText = sessionsData.length;
             
@@ -315,10 +363,11 @@
 
             sessionsData.forEach(session => {
                 const tr = document.createElement('tr');
-                // Remplacement du survol discret par un fond bleuté visible et une transition fluide
                 tr.className = "hover:bg-brand-50/60 transition-all duration-200 group cursor-pointer";
-                tr.onclick = () => { const url = new URL(`${API_BASE_URL}/session_detail/?id=${session.id}`)
-                    window.location.href = url}
+                tr.onclick = () => { 
+                    const url = new URL(`${API_BASE_URL}/session_detail/?id=${session.id}`);
+                    window.location.href = url;
+                };
 
                 const heureDebut = formatTime(session.heure_debut);
                 const heureFin = session.heure_fin ? formatTime(session.heure_fin) : '<span class="text-emerald-500 font-semibold animate-pulse">En cours...</span>';
@@ -349,7 +398,6 @@
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-right flex items-center justify-end gap-3">
                         <span class="font-semibold text-slate-800 text-xs">${duree}</span>
-                        <!-- Ajout d'un effet de translation (glissement vers la droite) au survol -->
                         <i class="fa-solid fa-chevron-right text-slate-300 group-hover:text-brand-600 group-hover:translate-x-1 transition-all duration-200"></i>
                     </td>
                 `;
@@ -415,12 +463,11 @@
         function calculerDuree(debutStr, finStr) {
             if (!debutStr || !finStr) return '--';
             
-            // On crée des dates arbitraires le même jour pour calculer la différence
             const dateDebut = new Date(`1970-01-01T${debutStr}Z`);
             const dateFin = new Date(`1970-01-01T${finStr}Z`);
             
             let diffMs = dateFin - dateDebut;
-            if (diffMs < 0) diffMs += 24 * 60 * 60 * 1000; // Si la session traverse minuit
+            if (diffMs < 0) diffMs += 24 * 60 * 60 * 1000;
             
             const diffHrs = Math.floor((diffMs % 86400000) / 3600000);
             const diffMins = Math.round(((diffMs % 86400000) % 3600000) / 60000);

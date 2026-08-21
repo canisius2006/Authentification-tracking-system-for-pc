@@ -85,6 +85,16 @@
 
                 <!-- Right Action Header -->
                 <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
+                    
+                    <!-- Badge d'information de l'utilisateur (Masqué par défaut, affiché via JS) -->
+                    <div id="user-info-badge" class="hidden items-center gap-2 px-3 py-1 bg-white border border-slate-200 rounded-xl shadow-sm">
+                        <img id="user-avatar" src="" alt="Avatar" class="w-7 h-7 rounded-full object-cover bg-slate-100 border border-slate-200">
+                        <div class="flex flex-col justify-center">
+                            <span id="user-fullname" class="text-[11px] font-bold text-slate-800 leading-none">--</span>
+                            <span id="user-username" class="text-[9px] font-medium text-slate-500 leading-none mt-1">@--</span>
+                        </div>
+                    </div>
+
                     <div class="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 rounded-xl border border-slate-200 items-center gap-2 flex">
                         <i class="fa-solid fa-hashtag text-slate-400"></i>
                         Session ID : <span id="session-id-badge" class="font-mono font-bold text-indigo-700">--</span>
@@ -255,6 +265,49 @@
                 // Gérer les cas où l'API encapsule les résultats
                 const appsList = Array.isArray(appsData) ? appsData : (appsData.results || appsData.data || []);
                 const badList = Array.isArray(badData) ? badData : (badData.results || badData.data || []);
+
+                // EXTRACTION DES INFOS UTILISATEUR
+                let userInfo = null;
+                if (appsList && appsList.length > 0) {
+                    userInfo = {
+                        firstName: appsList[0].session__user__first_name,
+                        lastName: appsList[0].session__user__last_name,
+                        username: appsList[0].session__user__username,
+                        photo: appsList[0].session__user__photo_de_profil
+                    };
+                } else if (badList && badList.length > 0) {
+                    userInfo = {
+                        firstName: badList[0].application__session__user__first_name,
+                        lastName: badList[0].application__session__user__last_name,
+                        username: badList[0].application__session__user__username,
+                        photo: badList[0].application__session__user__photo_de_profil
+                    };
+                }
+
+                // Affichage du badge utilisateur si les données existent
+                if (userInfo && userInfo.username) {
+                    const badge = document.getElementById('user-info-badge');
+                    badge.classList.remove('hidden');
+                    badge.classList.add('flex');
+                    
+                    const fullName = `${userInfo.firstName || ''} ${userInfo.lastName || ''}`.trim() || userInfo.username;
+                    document.getElementById('user-fullname').innerText = fullName;
+                    document.getElementById('user-username').innerText = `@${userInfo.username}`;
+                    
+                    const avatar = document.getElementById('user-avatar');
+                    if (userInfo.photo) {
+                        // On sécurise le chemin de l'image
+                        let photoUrl = userInfo.photo;
+                        if (!photoUrl.startsWith('http')) {
+                            if (!photoUrl.startsWith('/')) photoUrl = '/media/' + photoUrl; // Assumant 'media' si chemin non absolu Django 
+                            photoUrl = API_BASE_URL + photoUrl;
+                        }
+                        avatar.src = photoUrl;
+                    } else {
+                        // Générateur d'initiales stylisé si aucune photo n'est trouvée
+                        avatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=e0e7ff&color=3730a3&bold=true`;
+                    }
+                }
 
                 // On enrichit chaque élément (parsing JSON, extraction texte) une seule fois
                 allApps = appsList.map(enrichApp);
@@ -718,3 +771,9 @@
     </script>
 </body>
 {% endblock body %}
+```eof
+
+J'ai ajouté :
+1. **L'élément HTML caché** `div#user-info-badge` juste à gauche du "Session ID". Il contient l'avatar, le nom complet, et le nom d'utilisateur (vers la ligne 87).
+2. **Le script JS de récupération** dans le bloc `fetchSessionData` (vers la ligne 254). Dès le retour simultané des APIs `applications` et `badactions`, je vérifie quelle liste a des données en premier. J'y extrais le prénom, nom, username et la photo, tout en respectant l'arborescence spécifique selon que ce soit une application ou une bad action. 
+3. **Une photo de profil sécurisée** : Si l'URL de votre photo n'est pas complète (pas de http:// au début), elle est reconstruite avec votre `API_BASE_URL` et `/media/`. Si la personne n'a pas de photo, une icône avec ses initiales (générée via ui-avatars.com) sera automatiquement attribuée pour garder l'esthétisme de la page.
