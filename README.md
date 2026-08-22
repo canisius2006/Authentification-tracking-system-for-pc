@@ -487,4 +487,4 @@ Voir §4 : `piracy.txt` est cherché avec un chemin relatif au répertoire de tr
 
 ## Auteur
 
-Projet développé [NOBRE Canisius](canisiusnobre@gmail.com)
+Projet développé [NOBRE Canisius](mailto:canisiusnobre@gmail.com)
